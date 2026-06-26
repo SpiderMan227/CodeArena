@@ -1,0 +1,130 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum Verdict {
+  PENDING
+  ACCEPTED
+  WRONG_ANSWER
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  RUNTIME_ERROR
+  COMPILATION_ERROR
+}
+
+model User {
+  id           String          @id @default(uuid())
+  username     String          @unique
+  email        String          @unique
+  passwordHash String
+  isVerified   Boolean         @default(false)
+  role         Role            @default(USER)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  submissions  Submission[]
+  statistics   UserStatistics?
+}
+
+model EmailOtp {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  otpHash   String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model UserStatistics {
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  solvedCount        Int       @default(0)
+  attemptedCount     Int       @default(0)
+  currentStreak      Int       @default(0)
+  lastSubmissionDate DateTime?
+  topicProgress      Json      @default("{}") // e.g. { "Arrays": 5, "Math": 2 }
+}
+
+model Problem {
+  id           String       @id @default(uuid())
+  title        String
+  slug         String       @unique // e.g. "two-sum"
+  difficulty   Difficulty   @default(EASY)
+  statement    String       @db.Text
+  inputFormat  String       @db.Text
+  outputFormat String       @db.Text
+  constraints  String       @db.Text
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  tags         ProblemTag[]
+  testCases    TestCase[]
+  submissions  Submission[]
+  hints        Hint[]
+  editorial    Editorial?
+}
+
+model ProblemTag {
+  id       String    @id @default(uuid())
+  name     String    @unique // e.g. "Arrays", "Dynamic Programming"
+  problems Problem[]
+}
+
+model TestCase {
+  id             String   @id @default(uuid())
+  problemId      String
+  problem        Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  input          String   @db.Text
+  expectedOutput String   @db.Text
+  isSample       Boolean  @default(false)
+}
+
+model Submission {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId     String
+  problem       Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  code          String   @db.Text
+  language      String   @default("cpp")
+  verdict       Verdict  @default(PENDING)
+  executionTime Int?     // in ms
+  memoryUsed    Int?     // in KB
+  errorOutput   String?  @db.Text
+  stdout        String?  @db.Text
+  isSubmit      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+}
+
+model Hint {
+  id        String   @id @default(uuid())
+  problemId String
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  level     Int      // Progressive levels: 1, 2, 3, 4
+  content   String   @db.Text
+  
+  @@unique([problemId, level])
+}
+
+model Editorial {
+  id           String   @id @default(uuid())
+  problemId    String   @unique
+  problem      Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  content      String   @db.Text
+  codeSolution String?  @db.Text
+}
