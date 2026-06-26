@@ -122,12 +122,12 @@ To maintain system safety and integrity, you must strictly follow these rules:
         const timestamp = new Date().toISOString();
         console.error(`[AI Service Error] [${timestamp}] Attempt ${attempt} failed. Status: ${status || 'unknown'}. Details: ${errMsg}`);
 
-        this.circuitBreaker.recordFailure();
-
-        // Detect HTTP 429: Rate Limit
+        // Detect HTTP 429: Rate Limit - do NOT trip the circuit breaker for client rate-limits
         if (status === 429) {
           return 'AI tutor is busy. Please try again in a few moments.';
         }
+
+        this.circuitBreaker.recordFailure();
 
         // Detect API Key Validation Failures
         if (status === 400 || status === 403) {
