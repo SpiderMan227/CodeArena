@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import { Lock, Mail, AlertTriangle, Terminal, User } from 'lucide-react';
-import Lightfall from '../components/Lightfall/Lightfall';
+import SoftAurora from '../components/SoftAurora/SoftAurora';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
@@ -37,24 +37,23 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0a0a0c] px-4 py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Dynamic 3D Lightfall background */}
+      {/* Dynamic 3D SoftAurora background */}
       <div className="absolute inset-0 z-0 opacity-50 pointer-events-none">
-        <Lightfall
-          colors={['#6366f1', '#8b5cf6', '#a855f7', '#ec4899']}
-          backgroundColor="#0a0a0c"
-          speed={0.8}
-          streakCount={3}
-          streakWidth={1.5}
-          streakLength={1.2}
-          glow={1.5}
-          density={0.5}
-          twinkle={0.8}
-          zoom={2.5}
-          backgroundGlow={0.3}
-          opacity={1.0}
-          mouseInteraction={true}
-          mouseStrength={0.8}
-          mouseRadius={0.9}
+        <SoftAurora
+          speed={0.6}
+          scale={1.5}
+          brightness={1.0}
+          color1="#6366f1"
+          color2="#a855f7"
+          noiseFrequency={2.5}
+          noiseAmplitude={1.0}
+          bandHeight={0.5}
+          bandSpread={1.0}
+          octaveDecay={0.1}
+          layerOffset={0}
+          colorSpeed={1.0}
+          enableMouseInteraction={true}
+          mouseInfluence={0.25}
         />
       </div>
 
