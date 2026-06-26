@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import { Lock, Mail, AlertTriangle, Terminal, User } from 'lucide-react';
+import Antigravity from '../components/Antigravity/Antigravity';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
@@ -36,9 +37,28 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0a0a0c] px-4 py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Dynamic 3D Antigravity background */}
+      <div className="absolute inset-0 z-0 opacity-60 pointer-events-none">
+        <Antigravity
+          count={250}
+          magnetRadius={8}
+          ringRadius={9}
+          waveSpeed={0.5}
+          waveAmplitude={1.2}
+          particleSize={1.5}
+          lerpSpeed={0.06}
+          color="#6366f1"
+          autoAnimate={true}
+          particleVariance={0.8}
+          rotationSpeed={0.05}
+          depthFactor={0.5}
+          fieldStrength={8}
+        />
+      </div>
+
       {/* Premium ambient light backgrounds */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px]" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-[100px]" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-[100px] pointer-events-none" />
 
       <div className="w-full max-w-md space-y-8 z-10">
         <div className="text-center">
