@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import { Lock, Mail, AlertTriangle, Terminal, User } from 'lucide-react';
-import Antigravity from '../components/Antigravity/Antigravity';
+import Lightfall from '../components/Lightfall/Lightfall';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
@@ -37,22 +37,24 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0a0a0c] px-4 py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Dynamic 3D Antigravity background */}
-      <div className="absolute inset-0 z-0 opacity-60 pointer-events-none">
-        <Antigravity
-          count={250}
-          magnetRadius={8}
-          ringRadius={9}
-          waveSpeed={0.5}
-          waveAmplitude={1.2}
-          particleSize={1.5}
-          lerpSpeed={0.06}
-          color="#6366f1"
-          autoAnimate={true}
-          particleVariance={0.8}
-          rotationSpeed={0.05}
-          depthFactor={0.5}
-          fieldStrength={8}
+      {/* Dynamic 3D Lightfall background */}
+      <div className="absolute inset-0 z-0 opacity-50 pointer-events-none">
+        <Lightfall
+          colors={['#6366f1', '#8b5cf6', '#a855f7', '#ec4899']}
+          backgroundColor="#0a0a0c"
+          speed={0.8}
+          streakCount={3}
+          streakWidth={1.5}
+          streakLength={1.2}
+          glow={1.5}
+          density={0.5}
+          twinkle={0.8}
+          zoom={2.5}
+          backgroundGlow={0.3}
+          opacity={1.0}
+          mouseInteraction={true}
+          mouseStrength={0.8}
+          mouseRadius={0.9}
         />
       </div>
 
