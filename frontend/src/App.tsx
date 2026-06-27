@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import api from './services/api';
+import Home from './pages/Home';
+import { SpotlightNavbar } from './components/ui/spotlight-navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ProblemList from './pages/ProblemList';
@@ -47,15 +49,17 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return !isAuthenticated ? <>{children}</> : <Navigate to="/" replace />;
+  return !isAuthenticated ? <>{children}</> : <Navigate to="/dashboard" replace />;
 }
 
 // Layout wrapper
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = async () => {
+    setShowLogoutConfirm(false);
     try {
       await api.post('/auth/logout');
     } catch (err) {
@@ -66,76 +70,81 @@ function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const navItems = [
+    { label: 'Home', href: '/dashboard' },
+    { label: 'Problems', href: '/problems' },
+    { label: 'Leaderboard', href: '/leaderboard' },
+    { label: 'Account', href: '/profile' },
+    ...(user?.role === 'ADMIN' ? [{ label: 'Admin', href: '/admin' }] : []),
+    { label: 'Logout', href: '#', onClick: () => setShowLogoutConfirm(true) }
+  ];
+
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-slate-100 flex flex-col font-sans">
-      <header className="border-b border-[#1f1f2e] bg-[#121216]/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5 font-bold text-xl hover:opacity-90 transition-opacity">
-            <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+    <div className="min-h-screen bg-[#0a0a0c] text-slate-100 flex flex-col font-sans relative">
+      <header className="border-b border-[#1f1f2e]/60 bg-[#121216]/50 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+          <Link to={user ? "/dashboard" : "/"} className="flex items-center gap-2.5 font-bold text-xl hover:opacity-90 transition-opacity shrink-0">
+            <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
               <Terminal className="h-5 w-5" />
             </span>
-            <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent font-extrabold tracking-tight">
               CodeArena
             </span>
           </Link>
 
-          <nav className="flex items-center gap-4">
-            {user ? (
-              <>
-                <Link
-                  to="/problems"
-                  className="text-xs font-semibold text-slate-300 hover:text-white transition-colors mr-2 hover:bg-[#1f1f2e]/50 px-3 py-1.5 rounded-xl border border-transparent"
-                >
-                  Problems
-                </Link>
-                <Link
-                  to="/leaderboard"
-                  className="text-xs font-semibold text-slate-300 hover:text-white transition-colors mr-2 hover:bg-[#1f1f2e]/50 px-3 py-1.5 rounded-xl border border-transparent"
-                >
-                  Leaderboard
-                </Link>
-                {user.role === 'ADMIN' && (
-                  <Link
-                    to="/admin"
-                    className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-500/30 bg-indigo-500/5 px-3 py-1.5 rounded-xl"
-                  >
-                    Admin Dashboard
-                  </Link>
-                )}
-                <Link
-                  to="/profile"
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1f1f2e]/50 hover:bg-[#1f1f2e] text-sm text-slate-300 border border-[#2a2a3d] transition-all"
-                >
-                  <UserIcon className="h-4 w-4" />
-                  <span>{user.username}</span>
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-sm text-rose-400 border border-rose-500/20 transition-all"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Logout</span>
-                </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">
-                  Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-600/25 transition-all duration-200"
-                >
-                  Sign Up
-                </Link>
-              </>
-            )}
-          </nav>
+          {user ? (
+            <SpotlightNavbar items={navItems} className="pt-0 flex-1 justify-end max-w-xl" />
+          ) : (
+            <nav className="flex items-center gap-4">
+              <Link to="/login" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">
+                Sign In
+              </Link>
+              <Link
+                to="/register"
+                className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-600/25 transition-all duration-200"
+              >
+                Sign Up
+              </Link>
+            </nav>
+          )}
         </div>
       </header>
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
+
+      {/* Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in">
+          <div className="bg-[#121216]/95 border border-zinc-800 p-8 rounded-2xl max-w-sm w-full mx-4 shadow-2xl space-y-6 text-center transform transition-all duration-300 animate-in zoom-in-95">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20 mb-2">
+              <LogOut className="h-6 w-6" />
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white">Confirm Logout</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Do you actually want to log out of your session on CodeArena?
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-3 px-4 rounded-xl border border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 hover:text-white text-slate-300 text-sm font-semibold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-red-650 hover:from-rose-600 hover:to-red-750 text-white text-sm font-semibold transition-all shadow-lg shadow-rose-950/20"
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -359,6 +368,12 @@ export default function App() {
         } />
         <Route
           path="/"
+          element={
+            <Home />
+          }
+        />
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Layout>

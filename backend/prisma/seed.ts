@@ -89,7 +89,7 @@ function generateBinarySearchTestCase(): { input: string, expectedOutput: string
   for (let i = 0; i < n; i++) nums.push(Math.floor(Math.random() * 200) - 100);
   nums.sort((a, b) => a - b);
   const distinctNums = Array.from(new Set(nums));
-  const target = Math.random() > 0.3 
+  const target = Math.random() > 0.3
     ? distinctNums[Math.floor(Math.random() * distinctNums.length)]
     : Math.floor(Math.random() * 300) - 150;
   const idx = distinctNums.indexOf(target);
@@ -166,8 +166,8 @@ function generateLcsTestCase(): { input: string, expectedOutput: string, isSampl
   const dp = Array(lenA + 1).fill(0).map(() => Array(lenB + 1).fill(0));
   for (let i = 1; i <= lenA; i++) {
     for (let j = 1; j <= lenB; j++) {
-      dp[i][j] = (a[i - 1] === b[j - 1]) 
-        ? dp[i - 1][j - 1] + 1 
+      dp[i][j] = (a[i - 1] === b[j - 1])
+        ? dp[i - 1][j - 1] + 1
         : Math.max(dp[i - 1][j], dp[i][j - 1]);
     }
   }
@@ -227,6 +227,7 @@ async function main() {
       email: 'admin@codearena.com',
       passwordHash,
       role: 'ADMIN',
+      isVerified: true,
     },
   });
   await prisma.userStatistics.create({ data: { userId: admin.id } });
@@ -238,6 +239,7 @@ async function main() {
       email: 'user@codearena.com',
       passwordHash,
       role: 'USER',
+      isVerified: true,
     },
   });
   await prisma.userStatistics.create({ data: { userId: user.id } });
@@ -973,7 +975,7 @@ int main() {
       else if (p.slug === 'fibonacci-number') tc = generateFibonacciTestCase();
       else if (p.slug === 'longest-common-subsequence') tc = generateLcsTestCase();
       else if (p.slug === 'coin-change') tc = generateCoinChangeTestCase();
-      
+
       if (tc) {
         newTestCases.push({
           problemId: p.id,

@@ -237,10 +237,6 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    if (!user.isVerified) {
-      throw new ForbiddenError('Please verify your email before logging in.');
-    }
-
     const { accessToken, refreshToken } = generateTokens(user.id, user.role);
     sendRefreshTokenCookie(res, refreshToken);
 
