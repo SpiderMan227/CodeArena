@@ -30,6 +30,8 @@ export interface PerspectiveCarouselProps
   labelClassName?: string;
   controlsClassName?: string;
   aspectClassName?: string;
+  autoPlay?: boolean;
+  autoPlayInterval?: number;
 }
 
 const DEFAULT_TRANSITION: Transition = {
@@ -58,6 +60,8 @@ export function PerspectiveCarousel({
   labelClassName,
   controlsClassName,
   aspectClassName = "aspect-[16/10]",
+  autoPlay = false,
+  autoPlayInterval = 3500,
   className,
   onKeyDown,
   tabIndex,
@@ -71,13 +75,20 @@ export function PerspectiveCarousel({
   const safeSlideWidth = Math.max(96, slideWidth);
   const safeInactiveScale = clamp(inactiveScale, 0.5, 1);
 
+  // Auto-play: reset timer on user interaction
+  const interactionRef = React.useRef(0);
+  const resetAutoPlay = React.useCallback(() => {
+    interactionRef.current = Date.now();
+  }, []);
+
   const selectSlide = React.useCallback(
     (nextIndex: number) => {
       if (!items.length) {
         return;
       }
 
-      const resolvedIndex = loop
+      const useLoop = loop || autoPlay;
+      const resolvedIndex = useLoop
         ? (nextIndex + items.length) % items.length
         : clamp(nextIndex, 0, maxIndex);
 
@@ -87,8 +98,23 @@ export function PerspectiveCarousel({
 
       onActiveIndexChange?.(resolvedIndex);
     },
-    [activeIndex, items.length, loop, maxIndex, onActiveIndexChange]
+    [activeIndex, items.length, loop, autoPlay, maxIndex, onActiveIndexChange]
   );
+
+  // Auto-play effect
+  React.useEffect(() => {
+    if (!autoPlay || items.length <= 1) return;
+
+    const timer = setInterval(() => {
+      // Only advance if no recent user interaction (within the interval window)
+      const timeSinceInteraction = Date.now() - interactionRef.current;
+      if (timeSinceInteraction >= autoPlayInterval) {
+        setUncontrolledIndex((prev) => (prev + 1) % items.length);
+      }
+    }, autoPlayInterval);
+
+    return () => clearInterval(timer);
+  }, [autoPlay, autoPlayInterval, items.length]);
 
   if (!items.length) {
     return null;
@@ -105,11 +131,13 @@ export function PerspectiveCarousel({
 
     if (event.key === "ArrowLeft") {
       event.preventDefault();
+      resetAutoPlay();
       selectSlide(currentIndex - 1);
     }
 
     if (event.key === "ArrowRight") {
       event.preventDefault();
+      resetAutoPlay();
       selectSlide(currentIndex + 1);
     }
   };
@@ -159,7 +187,7 @@ export function PerspectiveCarousel({
                     aria-label={`Show ${item.title}`}
                     aria-current={isActive ? "true" : undefined}
                     className={cn("w-full cursor-pointer", aspectClassName)}
-                    onClick={() => selectSlide(index)}
+                    onClick={() => { resetAutoPlay(); selectSlide(index); }}
                   >
                     <img
                       src={item.src}

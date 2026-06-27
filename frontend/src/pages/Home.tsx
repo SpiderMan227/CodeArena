@@ -244,6 +244,8 @@ export default function Home() {
             rotationStep={40}
             inactiveScale={0.8}
             showControls={false}
+            autoPlay
+            autoPlayInterval={3500}
             className="h-full w-full"
           />
         </div>

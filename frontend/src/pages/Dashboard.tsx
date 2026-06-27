@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import { Award, Flame, Percent, CheckCircle2, ChevronRight, Activity, Cpu, Terminal } from 'lucide-react';
 import BounceCards from '../components/BounceCards/BounceCards';
 import BorderGlow from '../components/BorderGlow/BorderGlow';
+import { ExpandableBentoGrid } from '../components/ui/expandable-bento-grid';
 
 interface Metrics {
   easySolved: number;
@@ -104,6 +105,154 @@ export default function Dashboard() {
 
   const isFirstTime = !metrics || metrics.totalAttempted === 0;
 
+  // Determine if today's streak is active
+  const hasSubmittedToday = recentSubmissions.some((sub) => {
+    const subDate = new Date(sub.createdAt).toDateString();
+    const todayDate = new Date().toDateString();
+    return subDate === todayDate;
+  });
+
+  const bentoGridItems = metrics ? [
+    {
+      id: 'problems-solved',
+      title: 'Problems Solved',
+      subtitle: `${metrics.totalSolved}`,
+      description: `out of ${metrics.totalAttempted} attempted`,
+      icon: <Award className="h-5 w-5" />,
+      content: (
+        <div className="space-y-4 w-full">
+          <p className="text-xs text-slate-400">Breakdown of solved problems by difficulty level:</p>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-emerald-500 font-semibold">Easy</span>
+                <span className="text-slate-300 font-bold">{metrics.easySolved}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#0c0c0f] overflow-hidden">
+                <div
+                  style={{ width: `${(metrics.easySolved / (metrics.totalSolved || 1)) * 100}%` }}
+                  className="h-full bg-emerald-500"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-amber-500 font-semibold">Medium</span>
+                <span className="text-slate-300 font-bold">{metrics.mediumSolved}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#0c0c0f] overflow-hidden">
+                <div
+                  style={{ width: `${(metrics.mediumSolved / (metrics.totalSolved || 1)) * 100}%` }}
+                  className="h-full bg-amber-500"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-rose-500 font-semibold">Hard</span>
+                <span className="text-slate-300 font-bold">{metrics.hardSolved}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#0c0c0f] overflow-hidden">
+                <div
+                  style={{ width: `${(metrics.hardSolved / (metrics.totalSolved || 1)) * 100}%` }}
+                  className="h-full bg-rose-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'streak',
+      title: 'Current Streak',
+      subtitle: `${metrics.currentStreak} Days`,
+      description: hasSubmittedToday ? 'Today\'s streak completed!' : 'Today\'s streak pending',
+      icon: <Flame className={`h-5 w-5 ${hasSubmittedToday ? 'text-amber-500 animate-bounce' : 'text-slate-500'}`} />,
+      content: (
+        <div className="space-y-4 w-full text-xs">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/50 border border-zinc-800">
+            <span className="text-2xl">{hasSubmittedToday ? '🔥' : '⏳'}</span>
+            <div>
+              <p className="font-bold text-white">
+                {hasSubmittedToday ? "Today's Challenge Completed!" : "Pending Submission"}
+              </p>
+              <p className="text-slate-400 text-[10px] mt-0.5">
+                {hasSubmittedToday
+                  ? "Great job! You have submitted a solution today to secure your streak."
+                  : "Submit a correct solution to any problem today to increment your streak!"}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2 mt-2">
+            <p className="text-slate-400">Streak milestones are calculated based on consecutive calendar days with at least one compilation check or run submission on the CodeArena sandbox.</p>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'acceptance-rate',
+      title: 'Acceptance Rate',
+      subtitle: `${metrics.acceptanceRate}%`,
+      description: 'Accepted vs total submissions',
+      icon: <Percent className="h-5 w-5" />,
+      content: (
+        <div className="space-y-4 w-full">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-400">Total Solved / Attempted Ratio</span>
+            <span className="text-white font-bold">{metrics.totalSolved} / {metrics.totalAttempted}</span>
+          </div>
+          <div className="h-2 rounded-full bg-[#0c0c0f] overflow-hidden">
+            <div
+              style={{ width: `${metrics.acceptanceRate}%` }}
+              className="h-full bg-indigo-500 transition-all duration-500"
+            />
+          </div>
+          <p className="text-xs text-slate-400 leading-relaxed mt-2">
+            Your acceptance rate is the percentage of all compilation evaluations that successfully pass all isolated test inputs in the Docker sandbox. Refactoring code to pass clean on first attempt improves this ratio.
+          </p>
+        </div>
+      )
+    },
+    {
+      id: 'topic-mastery',
+      title: 'Topic Mastery',
+      subtitle: `${Object.keys(topicProgress).length} Topics`,
+      description: 'Algorithmic focus statistics',
+      icon: <Cpu className="h-5 w-5" />,
+      content: (
+        <div className="space-y-4 w-full">
+          <p className="text-xs text-slate-400">Algorithmic topics and solved counts:</p>
+          <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+            {Object.keys(topicProgress).length === 0 ? (
+              <div className="text-center py-6 text-slate-500 text-xs italic">
+                No topic data. Solve problems to track metrics.
+              </div>
+            ) : (
+              Object.entries(topicProgress).map(([topic, solvedCount]) => {
+                const progressPercentage = Math.min((solvedCount / 5) * 100, 100);
+                return (
+                  <div key={topic} className="space-y-1">
+                    <div className="flex justify-between text-[11px] font-semibold">
+                      <span className="text-slate-300">{topic}</span>
+                      <span className="text-indigo-400">{solvedCount} solved</span>
+                    </div>
+                    <div className="h-1 rounded-full bg-[#0c0c0f] overflow-hidden">
+                      <div
+                        style={{ width: `${progressPercentage}%` }}
+                        className="h-full bg-indigo-500 transition-all duration-500"
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )
+    }
+  ] : [];
+
   const onboardingImages = [
     '/images/onboarding/welcome.png',
     '/images/onboarding/challenges.png',
@@ -145,154 +294,40 @@ export default function Dashboard() {
         </div>
       </BorderGlow>
 
-      {/* Primary Metrics Grid */}
+      {/* Primary Metrics Grid (Expandable Bento Grid) */}
       {metrics && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-          {/* Solved Metric Card */}
-          <BorderGlow borderRadius={16} backgroundColor="#121216" className="shadow-lg">
-            <div className="p-6 flex items-center justify-between w-full h-full">
-              <div className="space-y-4 flex-1">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Problems Solved</span>
-                  <span className="text-4xl font-extrabold text-white">{metrics.totalSolved}</span>
-                  <span className="text-xs text-slate-500 font-medium block mt-1">out of {metrics.totalAttempted} attempted</span>
-                </div>
-
-                {/* Difficulty stats progress bar */}
-                <div className="space-y-2 pr-4">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-emerald-500 font-semibold">Easy: {metrics.easySolved}</span>
-                    <span className="text-amber-500 font-semibold">Med: {metrics.mediumSolved}</span>
-                    <span className="text-rose-500 font-semibold">Hard: {metrics.hardSolved}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-[#0c0c0f] flex overflow-hidden">
-                    <div
-                      style={{ width: `${(metrics.easySolved / (metrics.totalSolved || 1)) * 100}%` }}
-                      className="h-full bg-emerald-500 transition-all"
-                    />
-                    <div
-                      style={{ width: `${(metrics.mediumSolved / (metrics.totalSolved || 1)) * 100}%` }}
-                      className="h-full bg-amber-500 transition-all"
-                    />
-                    <div
-                      style={{ width: `${(metrics.hardSolved / (metrics.totalSolved || 1)) * 100}%` }}
-                      className="h-full bg-rose-500 transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20 shadow">
-                <Award className="h-7 w-7" />
-              </div>
-            </div>
-          </BorderGlow>
-
-          {/* Streak Card */}
-          <BorderGlow borderRadius={16} backgroundColor="#121216" className="shadow-lg">
-            <div className="p-6 flex items-center justify-between w-full h-full">
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Current Streak</span>
-                <span className="text-4xl font-extrabold text-white flex items-center gap-2">
-                  {metrics.currentStreak} <span className="text-sm font-bold text-amber-500">Days</span>
-                </span>
-                <span className="text-xs text-slate-500 font-medium block pt-1">Keep solving daily to build habits!</span>
-              </div>
-              <div className="h-14 w-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20 shadow">
-                <Flame className="h-7 w-7 animate-pulse" />
-              </div>
-            </div>
-          </BorderGlow>
-
-          {/* Acceptance Rate Card */}
-          <BorderGlow borderRadius={16} backgroundColor="#121216" className="shadow-lg">
-            <div className="p-6 flex items-center justify-between w-full h-full">
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Acceptance Rate</span>
-                <span className="text-4xl font-extrabold text-white">
-                  {metrics.acceptanceRate}%
-                </span>
-                <span className="text-xs text-slate-500 font-medium block pt-1">Ratio of accepted submissions to total submissions.</span>
-              </div>
-              <div className="h-14 w-14 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20 shadow">
-                <Percent className="h-7 w-7" />
-              </div>
-            </div>
-          </BorderGlow>
-
+        <div className="my-8">
+          <ExpandableBentoGrid items={bentoGridItems} />
         </div>
       )}
 
-      {/* Grid: Activity Chart & Topic Mastery */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        {/* Weekly Activity Chart Column */}
-        <BorderGlow borderRadius={16} backgroundColor="#121216" className="lg:col-span-7 shadow-xl">
-          <div className="p-6 space-y-4 w-full">
-            <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Activity className="h-5 w-5 text-indigo-400" /> Submission Activity
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Logs of submissions made over the last 7 days.</p>
-            </div>
-
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={activity} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <XAxis dataKey="day" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip
-                    cursor={{ fill: '#1f1f2e', opacity: 0.3 }}
-                    contentStyle={{ backgroundColor: '#0c0c0f', borderColor: '#1f1f2e', borderRadius: '12px' }}
-                    labelStyle={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}
-                    itemStyle={{ color: '#6366f1', fontSize: 12 }}
-                  />
-                  <Bar dataKey="submissions" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+      {/* Submission Activity Chart (Full Width) */}
+      <BorderGlow borderRadius={16} backgroundColor="#121216" className="w-full shadow-xl">
+        <div className="p-6 space-y-4 w-full">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Activity className="h-5 w-5 text-indigo-400" /> Submission Activity
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">Logs of submissions made over the last 7 days.</p>
           </div>
-        </BorderGlow>
 
-        {/* Topic progress Card Column */}
-        <BorderGlow borderRadius={16} backgroundColor="#121216" className="lg:col-span-5 shadow-xl">
-          <div className="p-6 space-y-4 w-full h-full">
-            <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Cpu className="h-5 w-5 text-purple-400" /> Topic Mastery
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Your progress and solved counts across algorithmic topics.</p>
-            </div>
-
-            <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
-              {Object.keys(topicProgress).length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-xs italic">
-                  No topic data. Solve problems to track metrics.
-                </div>
-              ) : (
-                Object.entries(topicProgress).map(([topic, solvedCount]) => {
-                  const progressPercentage = Math.min((solvedCount / 5) * 100, 100);
-                  return (
-                    <div key={topic} className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-slate-300">{topic}</span>
-                        <span className="text-indigo-400">{solvedCount} solved</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-[#0c0c0f] overflow-hidden">
-                        <div
-                          style={{ width: `${progressPercentage}%` }}
-                          className="h-full bg-indigo-500 transition-all duration-500"
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={activity} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                <XAxis dataKey="day" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: '#1f1f2e', opacity: 0.3 }}
+                  contentStyle={{ backgroundColor: '#0c0c0f', borderColor: '#1f1f2e', borderRadius: '12px' }}
+                  labelStyle={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}
+                  itemStyle={{ color: '#6366f1', fontSize: 12 }}
+                />
+                <Bar dataKey="submissions" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={28} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </BorderGlow>
-
-      </div>
+        </div>
+      </BorderGlow>
 
       {/* Recent Submissions Feed */}
       <BorderGlow borderRadius={16} backgroundColor="#121216" className="shadow-xl">
