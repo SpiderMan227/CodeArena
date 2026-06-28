@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [problemSearch, setProblemSearch] = useState('');
   const [selectedProblems, setSelectedProblems] = useState<Record<string, { title: string; slug: string; completed: boolean }>>({});
   const [dailyGoalList, setDailyGoalList] = useState<{ id: string; title: string; slug: string; completed: boolean }[]>([]);
+  const [dailyChallenge, setDailyChallenge] = useState<any | null>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -98,15 +99,23 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [dashRes, subRes] = await Promise.all([
+        const [dashRes, subRes, probRes] = await Promise.all([
           api.get('/users/dashboard'),
           api.get('/users/submissions'),
+          api.get('/problems', { params: { limit: 100 } }),
         ]);
 
         setMetrics(dashRes.data.metrics);
         setTopicProgress(dashRes.data.topicProgress);
         setSubmissionsByDate(dashRes.data.submissionsByDate || {});
         setRecentSubmissions(subRes.data.submissions);
+
+        // Pick a "Daily Challenge" that is stable for the whole day but rotates daily
+        const problems = probRes.data.problems || [];
+        if (problems.length > 0) {
+          const dayIndex = Math.floor(Date.now() / 86400000);
+          setDailyChallenge(problems[dayIndex % problems.length]);
+        }
       } catch (err) {
         console.error('Error fetching dashboard statistics:', err);
       } finally {
@@ -561,23 +570,43 @@ export default function Dashboard() {
               Daily Challenge
             </h3>
             <div className="space-y-md relative z-10">
-              <div className="bg-surface-container p-md rounded-lg border border-outline-variant">
-                <h4 className="font-body-md text-on-surface font-bold mb-xs">
-                  Reverse Nodes in k-Group
-                </h4>
-                <div className="flex gap-sm mb-md">
-                  <span className="font-code-sm text-error bg-error-container/20 px-xs rounded">
-                    Hard
-                  </span>
-                  <span className="font-code-sm text-on-surface-variant">Linked List</span>
+              {dailyChallenge ? (
+                <div className="bg-surface-container p-md rounded-lg border border-outline-variant">
+                  <h4 className="font-body-md text-on-surface font-bold mb-xs">
+                    {dailyChallenge.title}
+                  </h4>
+                  <div className="flex gap-sm mb-md items-center">
+                    <span className={`font-code-sm px-xs rounded capitalize ${
+                      dailyChallenge.difficulty === 'HARD'
+                        ? 'text-error bg-error-container/20'
+                        : dailyChallenge.difficulty === 'MEDIUM'
+                          ? 'text-amber-400 bg-amber-400/10'
+                          : 'text-secondary bg-secondary-container/20'
+                    }`}>
+                      {dailyChallenge.difficulty.toLowerCase()}
+                    </span>
+                    {dailyChallenge.tags?.[0] && (
+                      <span className="font-code-sm text-on-surface-variant">{dailyChallenge.tags[0].name}</span>
+                    )}
+                  </div>
+                  <Link
+                    to={`/problems/${dailyChallenge.slug}`}
+                    className="block w-full py-sm bg-primary text-center text-on-primary rounded-lg font-bold hover:brightness-110 active:scale-95 transition-all"
+                  >
+                    Solve Now
+                  </Link>
                 </div>
-                <Link
-                  to="/problems"
-                  className="block w-full py-sm bg-primary text-center text-on-primary rounded-lg font-bold hover:brightness-110 active:scale-95 transition-all"
-                >
-                  Solve Now
-                </Link>
-              </div>
+              ) : (
+                <div className="bg-surface-container p-md rounded-lg border border-outline-variant text-center">
+                  <p className="font-body-sm text-on-surface-variant mb-md">No challenge available right now.</p>
+                  <Link
+                    to="/problems"
+                    className="block w-full py-sm bg-primary text-center text-on-primary rounded-lg font-bold hover:brightness-110 active:scale-95 transition-all"
+                  >
+                    Browse Problems
+                  </Link>
+                </div>
+              )}
               <p className="text-body-sm text-on-surface-variant italic">
                 Solving this challenge grants +50 XP and 2 Streak Protectors.
               </p>

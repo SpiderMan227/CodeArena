@@ -43,6 +43,13 @@ interface FlipTextProps {
      * @default false
      */
     together?: boolean;
+
+    /**
+     * Optional second text to flip to. When provided, each character flips
+     * between `children` (front face) and `alternate` (back face) instead of
+     * doing a single-word coin-flip. Should be the same length as `children`.
+     */
+    alternate?: string;
 }
 
 export function FlipText({
@@ -53,6 +60,7 @@ export function FlipText({
     loop = true,
     separator = " ",
     together = false,
+    alternate,
 }: FlipTextProps) {
     const words = useMemo(() => children.split(separator), [children, separator]);
     const totalChars = children.length;
@@ -94,19 +102,36 @@ export function FlipText({
                                 calculatedDelay = sineValue * (duration * 0.25) + delay;
                             }
 
+                            const charStyle = {
+                                "--flip-duration": `${duration}s`,
+                                "--flip-delay": `${calculatedDelay}s`,
+                                "--flip-iteration": loop ? "infinite" : "1",
+                                transformStyle: "preserve-3d",
+                            } as React.CSSProperties;
+
+                            // Two-faced flip: front shows `children`, back shows `alternate`.
+                            if (alternate !== undefined) {
+                                const altChar = alternate[currentGlobalIndex] ?? " ";
+                                return (
+                                    <span
+                                        key={charIndex}
+                                        className="flip-char-3d inline-block relative"
+                                        style={charStyle}
+                                    >
+                                        <span className="flip-face flip-front">{char}</span>
+                                        <span className="flip-face flip-back" aria-hidden="true">
+                                            {altChar}
+                                        </span>
+                                    </span>
+                                );
+                            }
+
                             return (
                                 <span
                                     key={charIndex}
                                     className="flip-char inline-block relative"
                                     data-char={char}
-                                    style={
-                                        {
-                                            "--flip-duration": `${duration}s`,
-                                            "--flip-delay": `${calculatedDelay}s`,
-                                            "--flip-iteration": loop ? "infinite" : "1",
-                                            transformStyle: "preserve-3d",
-                                        } as React.CSSProperties
-                                    }
+                                    style={charStyle}
                                 >
                                     {char}
                                 </span>

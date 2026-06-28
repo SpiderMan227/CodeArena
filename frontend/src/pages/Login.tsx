@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
-import { Lock, Mail, AlertTriangle, Terminal, User, ChevronLeft } from 'lucide-react';
+import { Lock, Mail, AlertTriangle, Terminal, User, ChevronLeft, Eye, EyeOff } from 'lucide-react';
 import { PerspectiveGrid } from '../components/ui/perspective-grid';
 import { AnimatedButton } from '../components/ui/animated-button';
+import MetallicPaint from '../components/MetallicPaint/MetallicPaint';
+import logo from '../components/MetallicPaint/logo.svg';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -78,15 +81,16 @@ export default function Login() {
 
         <div className="w-full max-w-sm space-y-8">
           <div className="text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-md bg-zinc-900 text-zinc-400 mb-4 border border-zinc-800 lg:hidden">
-              <Terminal className="h-6 w-6" />
+            <div className="metallic-logo mx-auto h-16 w-[320px] select-none pointer-events-none">
+              <MetallicPaint
+                imageSrc={logo}
+                speed={0.12}
+                liquid={0.75}
+                brightness={2}
+                contrast={0.5}
+                tintColor="#a5b4fc"
+              />
             </div>
-            <h2 className="text-3xl font-bold tracking-tight text-white">
-              Welcome back to <span className="text-zinc-200 font-bold">CodeArena</span>
-            </h2>
-            <p className="mt-2 text-sm text-zinc-400">
-              Log in to solve problems, practice interviews, and improve your skills.
-            </p>
           </div>
 
           <div className="bg-zinc-950/80 border border-zinc-800/80 p-8 rounded-md shadow-2xl space-y-6 backdrop-blur-md">
@@ -114,7 +118,7 @@ export default function Login() {
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     className="block w-full rounded-md border border-zinc-800 bg-black/60 py-3 pl-10 pr-4 text-white placeholder-zinc-650 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 text-sm transition-all"
-                    placeholder="name@example.com or username"
+                    placeholder="XXXXXXXX"
                   />
                 </div>
               </div>
@@ -130,13 +134,21 @@ export default function Login() {
                   <input
                     id="password"
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full rounded-md border border-zinc-800 bg-black/60 py-3 pl-10 pr-4 text-white placeholder-zinc-650 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 text-sm transition-all"
-                    placeholder="••••••••"
+                    className="block w-full rounded-md border border-zinc-800 bg-black/60 py-3 pl-10 pr-12 text-white placeholder-zinc-650 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 text-sm transition-all"
+                    placeholder="******"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-zinc-200 transition-colors focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
                 <div className="flex justify-end mt-2">
                   <Link

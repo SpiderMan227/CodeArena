@@ -116,7 +116,9 @@ export default function Leaderboard() {
                 <div className="w-full h-full rounded-full overflow-hidden border-4 border-surface-container-lowest bg-surface-container-lowest flex items-center justify-center">
                   {second.user.avatarUrl ? (
                     <img className="w-full h-full object-cover" alt="Runner Up" src={second.user.avatarUrl} />
-                  ) : null}
+                  ) : (
+                    <span className="text-2xl font-bold text-secondary uppercase">{second.user.username?.slice(0, 2).toUpperCase()}</span>
+                  )}
                 </div>
               </div>
               <div className="mt-12 text-center">
@@ -146,7 +148,9 @@ export default function Leaderboard() {
                 <div className="w-full h-full rounded-full overflow-hidden border-4 border-surface-container-lowest bg-surface-container-lowest flex items-center justify-center">
                   {first.user.avatarUrl ? (
                     <img className="w-full h-full object-cover" alt="Grandmaster" src={first.user.avatarUrl} />
-                  ) : null}
+                  ) : (
+                    <span className="text-4xl font-bold text-primary uppercase">{first.user.username?.slice(0, 2).toUpperCase()}</span>
+                  )}
                 </div>
                 <div className="absolute -bottom-2 right-0 bg-[#b4c5ff] text-[#002a78] w-8 h-8 rounded-full flex items-center justify-center font-bold">
                   <span className="material-symbols-outlined scale-75" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
@@ -179,7 +183,9 @@ export default function Leaderboard() {
                 <div className="w-full h-full rounded-full overflow-hidden border-4 border-surface-container-lowest bg-surface-container-lowest flex items-center justify-center">
                   {third.user.avatarUrl ? (
                     <img className="w-full h-full object-cover" alt="Bronze Tier" src={third.user.avatarUrl} />
-                  ) : null}
+                  ) : (
+                    <span className="text-2xl font-bold text-on-surface-variant uppercase">{third.user.username?.slice(0, 2).toUpperCase()}</span>
+                  )}
                 </div>
               </div>
               <div className="mt-12 text-center">

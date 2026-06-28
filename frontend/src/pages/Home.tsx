@@ -2,7 +2,8 @@
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { StaggeredGrid, BentoItem } from '../components/ui/staggered-grid';
-import { FlipText } from '../components/ui/flip-text';
+import MetallicPaint from '../components/MetallicPaint/MetallicPaint';
+import logo from '../components/MetallicPaint/logo.svg';
 import {
   Sparkles,
   Terminal,
@@ -70,12 +71,16 @@ export default function Home() {
       <header className="border-b border-[#1f1f2e]/60 bg-[#0a0a0c]/70 backdrop-blur-md sticky top-0 z-[100] transition-all duration-200">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5 font-bold text-xl">
-            <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <Terminal className="h-5 w-5" />
-            </span>
-            <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent font-extrabold tracking-tight select-none pointer-events-none">
-              <FlipText>{"<0de4rena"}</FlipText>
-            </span>
+            <div className="metallic-logo h-10 w-[200px] select-none pointer-events-none">
+              <MetallicPaint
+                imageSrc={logo}
+                speed={0.12}
+                liquid={0.75}
+                brightness={2}
+                contrast={0.5}
+                tintColor="#a5b4fc"
+              />
+            </div>
           </div>
 
           <nav className="flex items-center gap-6">

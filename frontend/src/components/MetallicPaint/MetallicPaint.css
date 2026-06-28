@@ -1,0 +1,16 @@
+.paint-container {
+  display: block;
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+/* Header wordmark usage: crop the square canvas to a wide, header-height box
+   without distorting the logo (cover keeps aspect, clips transparent margins). */
+.metallic-logo {
+  overflow: hidden;
+}
+
+.metallic-logo .paint-container {
+  object-fit: cover;
+}

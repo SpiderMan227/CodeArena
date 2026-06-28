@@ -98,7 +98,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       <nav className="h-screen w-64 fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant flex flex-col py-lg z-50 animate-fadeIn">
         <div className="px-md mb-xl flex items-center gap-sm">
           <Link to="/dashboard" className="logo-font text-[28px] text-primary select-none pointer-events-none">
-            <FlipText separator="">{"<0de4rena"}</FlipText>
+            <FlipText separator="" duration={4} alternate="CodeArena">{"<0de4rena"}</FlipText>
           </Link>
         </div>
         <div className="flex-1 space-y-1 px-sm">
@@ -185,7 +185,9 @@ function Layout({ children }: { children: React.ReactNode }) {
                   src={user.avatarUrl}
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full border border-outline-variant/30 bg-transparent" />
+                <div className="w-10 h-10 rounded-full border-2 border-primary/30 bg-primary/10 text-primary flex items-center justify-center font-bold text-sm uppercase">
+                  {user?.username?.slice(0, 2).toUpperCase()}
+                </div>
               )}
             </button>
 

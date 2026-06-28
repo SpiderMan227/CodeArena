@@ -67,6 +67,20 @@ svg, img {
   -webkit-user-select: none;
 }
 
+/* Keep autofilled inputs (e.g. saved usernames/passwords) on the dark theme
+   instead of the browser's default white/yellow background. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #0a0a0a inset;
+  box-shadow: 0 0 0 1000px #0a0a0a inset;
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  /* Delay the autofill background swap effectively forever */
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 /* Vengeance UI FlipText Component Keyframes */
 .flip-char {
   animation: flip-char var(--flip-duration, 2.2s) cubic-bezier(0.76, 0, 0.24, 1) var(--flip-delay, 0s) var(--flip-iteration, infinite) both;
@@ -83,6 +97,37 @@ svg, img {
   }
   100% {
     transform: rotateX(-360deg);
+  }
+}
+
+/* Two-faced flip: alternates between front (children) and back (alternate) text */
+.flip-char-3d {
+  transform-style: preserve-3d;
+  animation: flip-between var(--flip-duration, 2.2s) cubic-bezier(0.76, 0, 0.24, 1) var(--flip-delay, 0s) var(--flip-iteration, infinite) both;
+}
+
+.flip-char-3d .flip-face {
+  display: inline-block;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.flip-char-3d .flip-back {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: rotateX(180deg);
+}
+
+@keyframes flip-between {
+  0%, 42% {
+    transform: rotateX(0deg);
+  }
+  50%, 92% {
+    transform: rotateX(180deg);
+  }
+  100% {
+    transform: rotateX(360deg);
   }
 }
 
