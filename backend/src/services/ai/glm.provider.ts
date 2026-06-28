@@ -2,12 +2,15 @@ import { IAIProvider } from './ai.provider.interface';
 import axios from 'axios';
 
 export class GlmProvider implements IAIProvider {
-  private getApiKey(): string {
-    return process.env.GLM_API_KEY || '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';
+  private getApiKey(): string | null {
+    return process.env.GLM_API_KEY || null;
   }
 
   public async generate(prompt: string, systemPrompt?: string): Promise<string> {
     const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('GLM_API_KEY_MISSING');
+    }
     const url = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
     const messages: any[] = [];

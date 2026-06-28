@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { StaggeredGrid, BentoItem } from '../components/ui/staggered-grid';
 import { FlipText } from '../components/ui/flip-text';
-import { 
-  Sparkles, 
-  Terminal, 
-  BarChart2, 
-  ArrowRight, 
+import {
+  Sparkles,
+  Terminal,
+  BarChart2,
+  ArrowRight,
   ChevronDown,
   Cpu,
   Shield,
@@ -57,7 +57,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-slate-100 flex flex-col font-sans select-text overflow-x-hidden relative pb-16">
-      
+
       {/* Ambient background glows */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
       <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[130px] -z-10 pointer-events-none" />
@@ -124,7 +124,7 @@ export default function Home() {
           <p className="text-slate-400 text-sm sm:text-base max-w-xl mt-4 font-medium leading-relaxed">
             Solve challenges in our containerized sandbox, receive progressive, spoiler-free hints, and rank up on the global leaderboard.
           </p>
-          
+
           <div className="mt-8 flex flex-wrap gap-4 justify-center">
             {isAuthenticated ? (
               <Link
@@ -150,7 +150,7 @@ export default function Home() {
               </>
             )}
           </div>
-          
+
           <div className="mt-6 flex flex-col items-center text-slate-500 animate-bounce">
             <span className="text-[10px] uppercase font-bold tracking-widest">Scroll to explore</span>
             <ChevronDown className="h-4 w-4 mt-1" />
@@ -159,10 +159,10 @@ export default function Home() {
 
         {/* The Animated Staggered Grid */}
         <div className="w-full max-w-7xl px-4 mt-4">
-          <StaggeredGrid 
-            images={gridImages} 
-            bentoItems={bentoItems} 
-            centerText="CODEARENA" 
+          <StaggeredGrid
+            images={gridImages}
+            bentoItems={bentoItems}
+            centerText="CODEARENA"
             showFooter={false}
           />
         </div>
