@@ -1,12 +1,11 @@
-import React from 'react';
+
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { StaggeredGrid, BentoItem } from '../components/ui/staggered-grid';
-import { PerspectiveCarousel } from '../components/ui/perspective-carousel';
+import { FlipText } from '../components/ui/flip-text';
 import { 
   Sparkles, 
   Terminal, 
-  Flame, 
   BarChart2, 
   ArrowRight, 
   ChevronDown,
@@ -54,13 +53,7 @@ export default function Home() {
     }
   ];
 
-  // Perspective Carousel items representing website advantages
-  const carouselItems = [
-    { src: '/images/landing/compete_banner.png', title: 'Compete Worldwide' },
-    { src: '/images/landing/track_progress_banner.png', title: 'Track Your Progress' },
-    { src: '/images/landing/ai_help_banner.png', title: 'Let the AI Help' },
-    { src: '/images/landing/grow_skills_banner.png', title: 'Grow Your Skills' }
-  ];
+
 
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-slate-100 flex flex-col font-sans select-text overflow-x-hidden relative pb-16">
@@ -80,8 +73,8 @@ export default function Home() {
             <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
               <Terminal className="h-5 w-5" />
             </span>
-            <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent font-extrabold tracking-tight">
-              CodeArena
+            <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent font-extrabold tracking-tight select-none pointer-events-none">
+              <FlipText>{"<0de4rena"}</FlipText>
             </span>
           </div>
 
@@ -222,34 +215,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Visual Feature Carousel Section */}
-      <section className="max-w-7xl mx-auto px-6 py-12 w-full border-t border-[#1f1f2e]/40 mt-8 flex flex-col items-center">
-        <div className="text-center max-w-2xl mx-auto space-y-3 mb-10">
-          <span className="px-3 py-1 rounded-full text-[10px] font-bold tracking-widest text-indigo-400 uppercase bg-indigo-500/10 border border-indigo-500/20">
-            Interactive Workspace Preview
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Designed for peak programmer performance
-          </h2>
-          <p className="text-slate-400 text-sm">
-            Slide through the core advantages of the CodeArena competitive environment.
-          </p>
-        </div>
-
-        <div className="w-full max-w-4xl h-[450px] bg-zinc-950/20 border border-zinc-900/60 rounded-2xl relative overflow-hidden p-6 shadow-xl backdrop-blur-sm">
-          <PerspectiveCarousel
-            items={carouselItems}
-            defaultActiveIndex={0}
-            slideWidth={360}
-            rotationStep={40}
-            inactiveScale={0.8}
-            showControls={false}
-            autoPlay
-            autoPlayInterval={3500}
-            className="h-full w-full"
-          />
-        </div>
-      </section>
 
       {/* Simple Footer */}
       <footer className="max-w-7xl mx-auto px-6 pt-12 text-center text-slate-600 text-xs border-t border-[#1f1f2e]/40 w-full flex flex-col sm:flex-row items-center justify-between gap-4 mt-12">

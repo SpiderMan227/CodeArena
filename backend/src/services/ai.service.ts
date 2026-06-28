@@ -1,12 +1,12 @@
 import crypto from 'crypto';
 import { IAIProvider } from './ai/ai.provider.interface';
-import { GeminiProvider } from './ai/gemini.provider';
+import { GlmProvider } from './ai/glm.provider';
 import { CircuitBreaker } from './ai/circuit-breaker';
 import { CacheService } from './ai/cache.service';
 import { BadRequestError } from '../utils/errors';
 
 export class AIService {
-  private static provider: IAIProvider = new GeminiProvider();
+  private static provider: IAIProvider = new GlmProvider();
   private static circuitBreaker = new CircuitBreaker(3, 30000); // 3 failures threshold, 30 seconds cooldown
   private static cache = new CacheService();
 
@@ -25,18 +25,19 @@ To maintain system safety and integrity, you must strictly follow these rules:
 2. Never expose or discuss hidden test cases. If asked about them, guide the user to analyze edge cases (like empty inputs, boundaries, integer overflow) rather than revealing the test cases.
 3. Keep explanations highly educational, encouraging, constructive, and concise.
 4. Use Markdown formatting.
-5. Strictly avoid providing the full source code solution unless the user's request explicitly demands it. Otherwise, explain the concept, provide pseudo-code, and guide them to implement it themselves.`;
+5. Strictly avoid providing the full source code solution unless the user's request explicitly demands it. Otherwise, explain the concept, provide pseudo-code, and guide them to implement it themselves.
+6. Never write Big-O notation or mathematical variables using LaTeX, MathJax, or dollar-sign delimiters (such as $\\mathcal{O}(N)$, \\mathcal{O}, or $O(N)$). Always write it in plain readable text style (e.g. O(N), O(1), or O(N + M)) so it displays correctly on a web browser without requiring a MathJax rendering library.`;
 
   /**
    * Startup environment validation check.
    */
   public static initialize(): void {
-    const key = process.env.GEMINI_API_KEY;
+    const key = process.env.GLM_API_KEY;
     if (!key) {
-      console.warn('\n⚠️  [AI Service Startup Warning]: GEMINI_API_KEY is not defined in your environment variable / .env file.');
-      console.warn('   AI-powered features (hints, compiler/runtime reviews, complexity analysis) will return fallback responses until configured.\n');
+      console.warn('\n⚠️  [AI Service Startup Warning]: GLM_API_KEY is not defined in your environment variable / .env file.');
+      console.warn('   AI-powered features (hints, compiler/runtime reviews, complexity analysis) will use fallback/default GLM API credentials.\n');
     } else {
-      console.log('[AI Service]: Startup check passed. GEMINI_API_KEY is configured.');
+      console.log('[AI Service]: Startup check passed. GLM_API_KEY is configured.');
     }
   }
 
@@ -113,7 +114,7 @@ To maintain system safety and integrity, you must strictly follow these rules:
         
         // Success
         this.circuitBreaker.recordSuccess();
-        return result;
+        return this.cleanMathJax(result);
       } catch (err: any) {
         const status = err.response?.status;
         const errMsg = err.response?.data?.error?.message || err.message || '';
@@ -156,6 +157,23 @@ To maintain system safety and integrity, you must strictly follow these rules:
     }
 
     return this.getFallbackResponse(type);
+  }
+
+  /**
+   * Cleans LaTeX/MathJax expressions from the generated response to plain text Big-O representations.
+   */
+  private static cleanMathJax(text: string): string {
+    if (!text) return '';
+    return text
+      .replace(/\\mathcal\{O\}/g, 'O')
+      .replace(/\\mathcal\s+O/g, 'O')
+      .replace(/\$\\mathcal\{O\}\((.*?)\)\$/g, 'O($1)')
+      .replace(/\$\\mathcal\{O\}\$/g, 'O')
+      .replace(/\$\mathcal\{O\}\$/g, 'O')
+      .replace(/\$O\((.*?)\)\$/g, 'O($1)')
+      .replace(/\$([0-9A-Za-z+\s()\-*\/]+)\$/g, '$1') // Strip dollar signs around equations/variables
+      .replace(/\\mathcal/g, 'O')
+      .replace(/\\mathcal\{O\}/g, 'O');
   }
 
   /**

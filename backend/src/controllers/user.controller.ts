@@ -112,6 +112,29 @@ export const getUserDashboard = async (req: AuthRequest, res: Response, next: Ne
       });
     });
 
+    const oneYearAgo = new Date();
+    oneYearAgo.setDate(oneYearAgo.getDate() - 364);
+    oneYearAgo.setHours(0, 0, 0, 0);
+
+    const submissionsLastYear = await prisma.submission.findMany({
+      where: {
+        userId,
+        isSubmit: true,
+        createdAt: {
+          gte: oneYearAgo,
+        },
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    const submissionsByDate: Record<string, number> = {};
+    submissionsLastYear.forEach((sub) => {
+      const dateStr = sub.createdAt.toISOString().split('T')[0];
+      submissionsByDate[dateStr] = (submissionsByDate[dateStr] || 0) + 1;
+    });
+
     return res.json({
       metrics: {
         easySolved,
@@ -124,6 +147,7 @@ export const getUserDashboard = async (req: AuthRequest, res: Response, next: Ne
       },
       weeklyActivity,
       topicProgress,
+      submissionsByDate,
     });
   } catch (error) {
     next(error);
@@ -164,6 +188,7 @@ export const getLeaderboard = async (req: AuthRequest, res: Response, next: Next
           select: {
             username: true,
             email: true,
+            avatarUrl: true,
           },
         },
       },

@@ -2,11 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Award, Flame, Percent, CheckCircle2, ChevronRight, Activity, Cpu, Terminal } from 'lucide-react';
-import BounceCards from '../components/BounceCards/BounceCards';
-import BorderGlow from '../components/BorderGlow/BorderGlow';
-import { ExpandableBentoGrid } from '../components/ui/expandable-bento-grid';
 
 interface Metrics {
   easySolved: number;
@@ -16,11 +11,6 @@ interface Metrics {
   totalAttempted: number;
   acceptanceRate: number;
   currentStreak: number;
-}
-
-interface ActivityItem {
-  day: string;
-  submissions: number;
 }
 
 interface Submission {
@@ -39,12 +29,71 @@ interface Submission {
 export default function Dashboard() {
   const { user } = useAuthStore();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [topicProgress, setTopicProgress] = useState<Record<string, number>>({});
+  const [submissionsByDate, setSubmissionsByDate] = useState<Record<string, number>>({});
   const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [showGoalDropdown, setShowGoalDropdown] = useState(false);
+  const [availableProblems, setAvailableProblems] = useState<any[]>([]);
+  const [isFetchingProblems, setIsFetchingProblems] = useState(false);
+  const [problemSearch, setProblemSearch] = useState('');
+  const [selectedProblems, setSelectedProblems] = useState<Record<string, { title: string; slug: string; completed: boolean }>>({});
+  const [dailyGoalList, setDailyGoalList] = useState<{ id: string; title: string; slug: string; completed: boolean }[]>([]);
 
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    if (user?.id) {
+      const saved = localStorage.getItem(`codearena_daily_goal_list_${user.id}`);
+      if (saved) {
+        try {
+          setDailyGoalList(JSON.parse(saved));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, [user?.id]);
+
+  const saveDailyGoal = (list: { id: string; title: string; slug: string; completed: boolean }[]) => {
+    if (!user?.id) return;
+    setDailyGoalList(list);
+    localStorage.setItem(`codearena_daily_goal_list_${user.id}`, JSON.stringify(list));
+  };
+
+  const toggleProblemCompletion = (problemId: string) => {
+    const updated = dailyGoalList.map(item => 
+      item.id === problemId ? { ...item, completed: !item.completed } : item
+    );
+    saveDailyGoal(updated);
+  };
+
+  const clearDailyGoal = () => {
+    if (!user?.id) return;
+    setDailyGoalList([]);
+    localStorage.removeItem(`codearena_daily_goal_list_${user.id}`);
+    setShowGoalDropdown(false);
+  };
+
+  const handleOpenGoalModal = async () => {
+    setShowGoalModal(true);
+    const selectedMap: Record<string, { title: string; slug: string; completed: boolean }> = {};
+    dailyGoalList.forEach(item => {
+      selectedMap[item.id] = { title: item.title, slug: item.slug, completed: item.completed };
+    });
+    setSelectedProblems(selectedMap);
+
+    if (availableProblems.length === 0) {
+      setIsFetchingProblems(true);
+      try {
+        const res = await api.get('/problems', { params: { limit: 100 } });
+        setAvailableProblems(res.data.problems || []);
+      } catch (err) {
+        console.error('Error fetching problems for goal selector:', err);
+      } finally {
+        setIsFetchingProblems(false);
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -54,21 +103,10 @@ export default function Dashboard() {
           api.get('/users/submissions'),
         ]);
 
-        const fetchedMetrics = dashRes.data.metrics;
-        setMetrics(fetchedMetrics);
-        setActivity(dashRes.data.weeklyActivity);
+        setMetrics(dashRes.data.metrics);
         setTopicProgress(dashRes.data.topicProgress);
+        setSubmissionsByDate(dashRes.data.submissionsByDate || {});
         setRecentSubmissions(subRes.data.submissions);
-
-        // Check if onboarding needs to be displayed
-        if (user) {
-          const onboardedKey = `onboarded_${user.id}`;
-          const hasOnboarded = localStorage.getItem(onboardedKey);
-          // Trigger onboarding if they haven't seen it AND they have 0 attempts
-          if (!hasOnboarded && (!fetchedMetrics || fetchedMetrics.totalAttempted === 0)) {
-            setShowOnboarding(true);
-          }
-        }
       } catch (err) {
         console.error('Error fetching dashboard statistics:', err);
       } finally {
@@ -77,371 +115,597 @@ export default function Dashboard() {
     };
 
     fetchDashboardData();
-  }, [user]);
+  }, []);
 
-  const handleCompleteOnboarding = () => {
-    if (user) {
-      localStorage.setItem(`onboarded_${user.id}`, 'true');
-    }
-    setShowOnboarding(false);
-  };
+  // Generate heatmap cells from actual submission activity over the last 364 days
+  const heatmapCells = Array.from({ length: 364 }).map((_, i) => {
+    // End date is today, subtract i days
+    const d = new Date();
+    d.setDate(d.getDate() - (363 - i));
+    const dateStr = d.toISOString().split('T')[0];
+    const count = submissionsByDate[dateStr] || 0;
 
-  const getVerdictStyle = (v: string) => {
+    let colorClass = 'bg-surface-container-highest';
+    if (count >= 5) colorClass = 'bg-secondary';
+    else if (count >= 3) colorClass = 'bg-secondary/60';
+    else if (count >= 1) colorClass = 'bg-secondary/30';
+
+    return (
+      <div
+        key={i}
+        className={`grid-contribution-cell ${colorClass}`}
+        title={`${count} submission(s) on ${d.toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}`}
+      />
+    );
+  });
+
+  const getVerdictLabel = (v: string) => {
     switch (v) {
-      case 'ACCEPTED': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
-      case 'WRONG_ANSWER': return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
-      case 'COMPILATION_ERROR': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-      default: return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
+      case 'ACCEPTED': return 'Accepted';
+      case 'WRONG_ANSWER': return 'Wrong Answer';
+      case 'COMPILATION_ERROR': return 'Compilation Error';
+      case 'TIME_LIMIT_EXCEEDED': return 'Time Limit Exceeded';
+      case 'RUNTIME_ERROR': return 'Runtime Error';
+      default: return v.replace(/_/g, ' ');
     }
   };
+
+  const getVerdictIcon = (v: string) =>
+    v === 'ACCEPTED' ? 'check_circle' : 'cancel';
+
+  const getVerdictColor = (v: string) =>
+    v === 'ACCEPTED'
+      ? 'bg-emerald-500/10 text-emerald-400'
+      : 'bg-error-container/10 text-error';
+
+  const getVerdictTextClass = (v: string) =>
+    v === 'ACCEPTED' ? 'text-on-surface font-semibold' : 'text-error font-semibold';
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-[#0a0a0c]">
-        <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
-  const isFirstTime = !metrics || metrics.totalAttempted === 0;
-
-  // Determine if today's streak is active
-  const hasSubmittedToday = recentSubmissions.some((sub) => {
-    const subDate = new Date(sub.createdAt).toDateString();
-    const todayDate = new Date().toDateString();
-    return subDate === todayDate;
-  });
-
-  const bentoGridItems = metrics ? [
-    {
-      id: 'problems-solved',
-      title: 'Problems Solved',
-      subtitle: `${metrics.totalSolved}`,
-      description: `out of ${metrics.totalAttempted} attempted`,
-      icon: <Award className="h-5 w-5" />,
-      content: (
-        <div className="space-y-4 w-full">
-          <p className="text-xs text-slate-400">Breakdown of solved problems by difficulty level:</p>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-emerald-500 font-semibold">Easy</span>
-                <span className="text-slate-300 font-bold">{metrics.easySolved}</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-[#0c0c0f] overflow-hidden">
-                <div
-                  style={{ width: `${(metrics.easySolved / (metrics.totalSolved || 1)) * 100}%` }}
-                  className="h-full bg-emerald-500"
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-amber-500 font-semibold">Medium</span>
-                <span className="text-slate-300 font-bold">{metrics.mediumSolved}</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-[#0c0c0f] overflow-hidden">
-                <div
-                  style={{ width: `${(metrics.mediumSolved / (metrics.totalSolved || 1)) * 100}%` }}
-                  className="h-full bg-amber-500"
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-rose-500 font-semibold">Hard</span>
-                <span className="text-slate-300 font-bold">{metrics.hardSolved}</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-[#0c0c0f] overflow-hidden">
-                <div
-                  style={{ width: `${(metrics.hardSolved / (metrics.totalSolved || 1)) * 100}%` }}
-                  className="h-full bg-rose-500"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'streak',
-      title: 'Current Streak',
-      subtitle: `${metrics.currentStreak} Days`,
-      description: hasSubmittedToday ? 'Today\'s streak completed!' : 'Today\'s streak pending',
-      icon: <Flame className={`h-5 w-5 ${hasSubmittedToday ? 'text-amber-500 animate-bounce' : 'text-slate-500'}`} />,
-      content: (
-        <div className="space-y-4 w-full text-xs">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-900/50 border border-zinc-800">
-            <span className="text-2xl">{hasSubmittedToday ? '🔥' : '⏳'}</span>
-            <div>
-              <p className="font-bold text-white">
-                {hasSubmittedToday ? "Today's Challenge Completed!" : "Pending Submission"}
-              </p>
-              <p className="text-slate-400 text-[10px] mt-0.5">
-                {hasSubmittedToday
-                  ? "Great job! You have submitted a solution today to secure your streak."
-                  : "Submit a correct solution to any problem today to increment your streak!"}
-              </p>
-            </div>
-          </div>
-          <div className="space-y-2 mt-2">
-            <p className="text-slate-400">Streak milestones are calculated based on consecutive calendar days with at least one compilation check or run submission on the CodeArena sandbox.</p>
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'acceptance-rate',
-      title: 'Acceptance Rate',
-      subtitle: `${metrics.acceptanceRate}%`,
-      description: 'Accepted vs total submissions',
-      icon: <Percent className="h-5 w-5" />,
-      content: (
-        <div className="space-y-4 w-full">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-slate-400">Total Solved / Attempted Ratio</span>
-            <span className="text-white font-bold">{metrics.totalSolved} / {metrics.totalAttempted}</span>
-          </div>
-          <div className="h-2 rounded-full bg-[#0c0c0f] overflow-hidden">
-            <div
-              style={{ width: `${metrics.acceptanceRate}%` }}
-              className="h-full bg-indigo-500 transition-all duration-500"
-            />
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed mt-2">
-            Your acceptance rate is the percentage of all compilation evaluations that successfully pass all isolated test inputs in the Docker sandbox. Refactoring code to pass clean on first attempt improves this ratio.
-          </p>
-        </div>
-      )
-    },
-    {
-      id: 'topic-mastery',
-      title: 'Topic Mastery',
-      subtitle: `${Object.keys(topicProgress).length} Topics`,
-      description: 'Algorithmic focus statistics',
-      icon: <Cpu className="h-5 w-5" />,
-      content: (
-        <div className="space-y-4 w-full">
-          <p className="text-xs text-slate-400">Algorithmic topics and solved counts:</p>
-          <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
-            {Object.keys(topicProgress).length === 0 ? (
-              <div className="text-center py-6 text-slate-500 text-xs italic">
-                No topic data. Solve problems to track metrics.
-              </div>
-            ) : (
-              Object.entries(topicProgress).map(([topic, solvedCount]) => {
-                const progressPercentage = Math.min((solvedCount / 5) * 100, 100);
-                return (
-                  <div key={topic} className="space-y-1">
-                    <div className="flex justify-between text-[11px] font-semibold">
-                      <span className="text-slate-300">{topic}</span>
-                      <span className="text-indigo-400">{solvedCount} solved</span>
-                    </div>
-                    <div className="h-1 rounded-full bg-[#0c0c0f] overflow-hidden">
-                      <div
-                        style={{ width: `${progressPercentage}%` }}
-                        className="h-full bg-indigo-500 transition-all duration-500"
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )
-    }
-  ] : [];
-
-  const onboardingImages = [
-    '/images/onboarding/welcome.png',
-    '/images/onboarding/challenges.png',
-    '/images/onboarding/sandbox.png',
-    '/images/onboarding/analytics.png',
-    '/images/onboarding/leaderboard.png',
-  ];
-
-  const onboardingTransforms = [
-    'rotate(5deg) translate(-150px)',
-    'rotate(0deg) translate(-70px)',
-    'rotate(-5deg)',
-    'rotate(5deg) translate(70px)',
-    'rotate(-5deg) translate(150px)',
-  ];
+  // Sorted topic entries by count descending
+  const topicEntries = Object.entries(topicProgress).sort(([, a], [, b]) => b - a);
+  const topLanguages = topicEntries.slice(0, 5);
+  const maxTopicCount = topLanguages.length > 0 ? topLanguages[0][1] : 1;
 
   return (
-    <div className="space-y-6 relative overflow-hidden pb-12">
-      {/* Dynamic light glows */}
-      <div className="absolute top-0 left-1/3 w-96 h-96 bg-indigo-500/5 rounded-full blur-[100px] -z-10" />
-
-      {/* Greeting Banner */}
-      <BorderGlow animated={true} borderRadius={16} backgroundColor="transparent" className="w-full shadow-2xl">
-        <div className="p-8 bg-gradient-to-br from-[#121216] to-[#181824] flex flex-col md:flex-row md:items-center md:justify-between gap-6 w-full">
-          <div className="space-y-2">
-            <h2 className="text-3xl font-extrabold text-white">
-              {isFirstTime ? `Welcome, ${user?.username}!` : `Welcome back, ${user?.username}!`}
-            </h2>
-            <p className="text-slate-400 text-sm max-w-xl">
-              Track your coding streaks, review editorial hints, analyze Docker logs, and level up your software engineering abilities.
-            </p>
-          </div>
-          <Link
-            to="/problems"
-            className="inline-flex items-center gap-1.5 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 transition-all self-start md:self-center"
-          >
-            Browse Problems <ChevronRight className="h-4 w-4" />
-          </Link>
+    <div className="p-gutter">
+      {/* Hero / Welcome Header */}
+      <section className="mb-xl flex justify-between items-end">
+        <div>
+          <h1 className="font-headline-lg text-headline-lg text-on-surface mb-xs">
+            Welcome back, {user?.username}
+          </h1>
+          <p className="text-on-surface-variant">
+            {metrics
+              ? `You've solved ${metrics.totalSolved} problems total. Keep up the momentum!`
+              : 'Start solving problems to track your progress!'}
+          </p>
         </div>
-      </BorderGlow>
+        <div className="hidden lg:block relative z-30">
+          {dailyGoalList.length > 0 ? (
+            <div className="flex items-center gap-xs">
+              {/* Main Daily Goal Toggle Button */}
+              <button
+                onClick={() => setShowGoalDropdown(!showGoalDropdown)}
+                className="flex items-center gap-sm bg-surface-container-high px-md py-sm rounded-xl border border-outline-variant hover:border-primary transition-all text-left active:scale-95 shadow-md"
+              >
+                <span
+                  className="material-symbols-outlined text-secondary animate-pulse"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  auto_awesome
+                </span>
+                <span className="font-label-md text-label-md text-on-surface select-none">
+                  Daily goal: <span className="text-secondary font-bold">
+                    {dailyGoalList.filter(p => p.completed).length}/{dailyGoalList.length} Solved
+                  </span>
+                </span>
+                <span className="material-symbols-outlined scale-75 text-on-surface-variant">
+                  {showGoalDropdown ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
 
-      {/* Primary Metrics Grid (Expandable Bento Grid) */}
-      {metrics && (
-        <div className="my-8">
-          <ExpandableBentoGrid items={bentoGridItems} />
-        </div>
-      )}
+              {/* Edit / Clear quick triggers */}
+              <button
+                onClick={handleOpenGoalModal}
+                className="p-2 bg-surface-container-high border border-outline-variant rounded-xl text-on-surface-variant hover:text-white hover:bg-surface-variant transition-all active:scale-95"
+                title="Edit Daily Goal"
+              >
+                <span className="material-symbols-outlined scale-90">edit</span>
+              </button>
+              <button
+                onClick={clearDailyGoal}
+                className="p-2 bg-surface-container-high border border-outline-variant rounded-xl text-on-surface-variant hover:text-error hover:bg-surface-variant transition-all active:scale-95"
+                title="Clear Daily Goal"
+              >
+                <span className="material-symbols-outlined scale-90">delete</span>
+              </button>
 
-      {/* Submission Activity Chart (Full Width) */}
-      <BorderGlow borderRadius={16} backgroundColor="#121216" className="w-full shadow-xl">
-        <div className="p-6 space-y-4 w-full">
-          <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Activity className="h-5 w-5 text-indigo-400" /> Submission Activity
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">Logs of submissions made over the last 7 days.</p>
-          </div>
+              {/* Goal Checklist Dropdown overlay */}
+              {showGoalDropdown && (
+                <div className="absolute right-0 top-12 w-80 bg-surface-container border border-outline-variant rounded-2xl shadow-2xl p-lg z-50 animate-fadeIn space-y-md">
+                  <div className="flex justify-between items-center pb-sm border-b border-outline-variant">
+                    <span className="font-label-md text-label-md text-on-surface-variant uppercase font-bold tracking-wider">Goal Checklist</span>
+                    <span className="text-[10px] bg-secondary-container text-on-secondary-container px-xs rounded font-bold">
+                      {Math.round((dailyGoalList.filter(p => p.completed).length / dailyGoalList.length) * 100)}% Done
+                    </span>
+                  </div>
 
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={activity} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <XAxis dataKey="day" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ fill: '#1f1f2e', opacity: 0.3 }}
-                  contentStyle={{ backgroundColor: '#0c0c0f', borderColor: '#1f1f2e', borderRadius: '12px' }}
-                  labelStyle={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}
-                  itemStyle={{ color: '#6366f1', fontSize: 12 }}
-                />
-                <Bar dataKey="submissions" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={28} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </BorderGlow>
+                  <div className="space-y-sm max-h-60 overflow-y-auto custom-scrollbar">
+                    {dailyGoalList.map((item) => (
+                      <div key={item.id} className="flex items-start gap-md py-xs group">
+                        <button
+                          onClick={() => toggleProblemCompletion(item.id)}
+                          className="mt-0.5 text-on-surface-variant hover:text-primary transition-colors shrink-0"
+                        >
+                          <span className="material-symbols-outlined scale-90" style={{ fontVariationSettings: item.completed ? "'FILL' 1" : "" }}>
+                            {item.completed ? 'check_box' : 'check_box_outline_blank'}
+                          </span>
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <Link
+                            to={`/problems/${item.slug}`}
+                            className={`block text-xs font-semibold truncate hover:text-primary transition-colors ${
+                              item.completed ? 'text-on-surface-variant/50 line-through' : 'text-on-surface'
+                            }`}
+                            title={item.title}
+                          >
+                            {item.title}
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-      {/* Recent Submissions Feed */}
-      <BorderGlow borderRadius={16} backgroundColor="#121216" className="shadow-xl">
-        <div className="p-6 space-y-4 w-full">
-          <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" /> Recent Submissions
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">Review your latest submissions and execution statuses.</p>
-          </div>
-
-          <div className="overflow-x-auto rounded-xl border border-[#1f1f2e]">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-[#1f1f2e] bg-[#161622]/40 text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                  <th className="py-3 px-4">Problem</th>
-                  <th className="py-3 px-4">Verdict</th>
-                  <th className="py-3 px-4">Time</th>
-                  <th className="py-3 px-4">Memory</th>
-                  <th className="py-3 px-4">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#1f1f2e] text-xs font-mono text-slate-300">
-                {recentSubmissions.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-500 font-sans italic">
-                      You have not submitted any solutions yet.
-                    </td>
-                  </tr>
-                ) : (
-                  recentSubmissions.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-[#1f1f2e]/10 transition-colors">
-                      <td className="py-3 px-4 font-sans font-semibold text-white">
-                        <Link to={`/problems/${sub.problem.slug}`} className="hover:text-indigo-400 transition-colors">
-                          {sub.problem.title}
-                        </Link>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold border uppercase ${getVerdictStyle(sub.verdict)}`}>
-                          {sub.verdict.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        {sub.executionTime !== null ? `${sub.executionTime} ms` : '--'}
-                      </td>
-                      <td className="py-3 px-4">
-                        {sub.memoryUsed !== null ? `${(sub.memoryUsed / 1024).toFixed(2)} MB` : '--'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-500 font-sans">
-                        {new Date(sub.createdAt).toLocaleString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </BorderGlow>
-
-      {/* Onboarding Overlay with BounceCards */}
-      {showOnboarding && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-lg transition-all duration-500 animate-fadeIn">
-          {/* Ambient glows */}
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px]" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-[120px]" />
-
-          {/* Welcome text */}
-          <div className="text-center mb-8 z-10 space-y-3 animate-scaleIn">
-            <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 mb-2">
-              <Terminal className="h-7 w-7" />
+                  <button
+                    onClick={() => setShowGoalDropdown(false)}
+                    className="block w-full text-center py-xs text-[10px] font-bold uppercase tracking-wider text-on-surface-variant border border-outline-variant hover:border-on-surface hover:text-white rounded-lg transition-colors"
+                  >
+                    Close Panel
+                  </button>
+                </div>
+              )}
             </div>
-            <h2 className="text-4xl font-extrabold bg-gradient-to-r from-indigo-300 via-white to-purple-400 bg-clip-text text-transparent">
-              Welcome to CodeArena
-            </h2>
-            <p className="text-slate-400 text-sm max-w-md mx-auto">
-              Here's what you can do on our platform. Hover over the cards to explore!
-            </p>
-          </div>
+          ) : (
+            // Pending State
+            <button
+              onClick={handleOpenGoalModal}
+              className="flex items-center gap-sm bg-surface-container-high px-md py-sm rounded-xl border border-outline-variant hover:border-primary hover:bg-surface-variant/30 active:scale-95 transition-all text-left group"
+            >
+              <span
+                className="material-symbols-outlined text-secondary/60 group-hover:text-secondary group-hover:animate-pulse"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                auto_awesome
+              </span>
+              <span className="font-label-md text-label-md text-on-surface-variant group-hover:text-white select-none">
+                Daily goal: <span className="text-on-surface-variant/60 italic font-normal">Pending (Click to set)</span>
+              </span>
+            </button>
+          )}
+        </div>
+      </section>
 
-          {/* BounceCards */}
-          <div className="z-10">
-            <BounceCards
-              className="onboarding-bounceCards"
-              images={onboardingImages}
-              containerWidth={600}
-              containerHeight={260}
-              animationDelay={0.6}
-              animationStagger={0.08}
-              easeType="elastic.out(1, 0.5)"
-              transformStyles={onboardingTransforms}
-              enableHover={true}
+      {/* Stats Bento Grid */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-xl">
+        {/* Solved Problems Card */}
+        <div className="bg-surface-container rounded-xl p-lg border border-outline-variant relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <span className="material-symbols-outlined text-[120px]">task_alt</span>
+          </div>
+          <div className="flex justify-between items-start mb-md">
+            <p className="font-label-md text-label-md text-on-surface-variant uppercase">Solved Problems</p>
+            {metrics && metrics.totalSolved > 0 && (
+              <span className="text-emerald-400 font-code-sm">+{metrics.totalSolved} total</span>
+            )}
+          </div>
+          <div className="flex items-baseline gap-xs">
+            <h2 className="font-headline-xl text-headline-xl text-on-surface">
+              {metrics?.totalSolved ?? 0}
+            </h2>
+            <span className="text-on-surface-variant font-body-sm">
+              / {metrics?.totalAttempted ?? 0} attempted
+            </span>
+          </div>
+          <div className="mt-md h-2 bg-surface-container-highest rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{
+                width: `${metrics ? Math.min((metrics.totalSolved / Math.max(metrics.totalAttempted, 1)) * 100, 100) : 0}%`,
+              }}
             />
           </div>
+        </div>
 
-          {/* CTA Button */}
-          <div className="mt-12 z-10 flex flex-col items-center gap-4 animate-scaleIn" style={{ animationDelay: '1.5s', animationFillMode: 'both' }}>
-            <button
-              onClick={handleCompleteOnboarding}
-              className="px-8 py-3 text-sm font-bold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl shadow-lg shadow-indigo-600/30 transition-all uppercase tracking-wider hover:scale-105 active:scale-95"
+        {/* Current Streak Card */}
+        <div className="bg-surface-container rounded-xl p-lg border border-outline-variant relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <span className="material-symbols-outlined text-[120px]">local_fire_department</span>
+          </div>
+          <div className="flex justify-between items-start mb-md">
+            <p className="font-label-md text-label-md text-on-surface-variant uppercase">Current Streak</p>
+            <span
+              className="material-symbols-outlined text-secondary"
+              style={{ fontVariationSettings: "'FILL' 1" }}
             >
-              Let's Start Coding!
-            </button>
-            <button
-              onClick={handleCompleteOnboarding}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-300 transition-colors uppercase tracking-wider"
+              local_fire_department
+            </span>
+          </div>
+          <div className="flex items-baseline gap-xs">
+            <h2 className="font-headline-xl text-headline-xl text-on-surface">
+              {metrics?.currentStreak ?? 0}
+            </h2>
+            <span className="text-on-surface-variant font-body-sm">days</span>
+          </div>
+          <p className="text-on-surface-variant font-body-sm mt-sm">
+            Submit a solution today to maintain your streak!
+          </p>
+        </div>
+
+        {/* Acceptance Rate Card */}
+        <div className="bg-surface-container rounded-xl p-lg border border-outline-variant relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <span className="material-symbols-outlined text-[120px]">monitoring</span>
+          </div>
+          <div className="flex justify-between items-start mb-md">
+            <p className="font-label-md text-label-md text-on-surface-variant uppercase">Acceptance Rate</p>
+            <span className="text-primary font-code-sm">
+              {metrics && metrics.acceptanceRate >= 70 ? 'Great!' : 'Keep Going'}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-xs">
+            <h2 className="font-headline-xl text-headline-xl text-on-surface">
+              {metrics?.acceptanceRate ?? 0}
+            </h2>
+            <span className="text-on-surface-variant font-body-sm">%</span>
+          </div>
+          <p className="text-on-surface-variant font-body-sm mt-sm">
+            {metrics?.totalSolved ?? 0} accepted / {metrics?.totalAttempted ?? 0} submitted
+          </p>
+        </div>
+
+        {/* Difficulty Breakdown Card */}
+        <div className="bg-surface-container rounded-xl p-lg border border-outline-variant relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <span className="material-symbols-outlined text-[120px]">emoji_events</span>
+          </div>
+          <div className="flex justify-between items-start mb-md">
+            <p className="font-label-md text-label-md text-on-surface-variant uppercase">Difficulty Split</p>
+            <span
+              className="material-symbols-outlined text-tertiary"
+              style={{ fontVariationSettings: "'FILL' 1" }}
             >
-              Skip
+              stars
+            </span>
+          </div>
+          <div className="space-y-2 mt-sm">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-emerald-400 font-semibold">Easy</span>
+              <span className="text-on-surface font-bold">{metrics?.easySolved ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-amber-400 font-semibold">Medium</span>
+              <span className="text-on-surface font-bold">{metrics?.mediumSolved ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-error font-semibold">Hard</span>
+              <span className="text-on-surface font-bold">{metrics?.hardSolved ?? 0}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Middle Section: Activity & Progress */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-gutter items-start">
+        {/* Main Dashboard Feed */}
+        <div className="xl:col-span-2 space-y-gutter">
+          {/* Contribution Heatmap (GitHub Style) */}
+          <div className="bg-surface-container rounded-xl p-lg border border-outline-variant">
+            <div className="flex justify-between items-center mb-lg">
+              <h3 className="font-headline-md text-headline-md text-on-surface">
+                Submission Activity
+              </h3>
+              <div className="flex gap-sm text-on-surface-variant font-body-sm items-center">
+                <span>Less</span>
+                <div className="flex gap-[2px]">
+                  <div className="w-3 h-3 bg-surface-container-highest rounded-sm" />
+                  <div className="w-3 h-3 bg-secondary/30 rounded-sm" />
+                  <div className="w-3 h-3 bg-secondary/60 rounded-sm" />
+                  <div className="w-3 h-3 bg-secondary rounded-sm" />
+                </div>
+                <span>More</span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto pb-sm custom-scrollbar">
+              <div className="grid grid-flow-col grid-rows-7 gap-[3px] min-w-[700px]">
+                {heatmapCells}
+              </div>
+            </div>
+            <div className="mt-md flex justify-between font-label-md text-label-md text-on-surface-variant uppercase">
+              <span>Last 52 weeks</span>
+              <span>
+                Total Submissions: {metrics?.totalAttempted ?? 0}
+              </span>
+            </div>
+          </div>
+
+          {/* Recent Activity List */}
+          <div className="bg-surface-container rounded-xl border border-outline-variant overflow-hidden">
+            <div className="p-lg border-b border-outline-variant flex justify-between items-center">
+              <h3 className="font-headline-md text-headline-md text-on-surface">
+                Recent Submissions
+              </h3>
+              <Link
+                to="/problems"
+                className="text-primary font-label-md text-label-md uppercase tracking-widest hover:underline"
+              >
+                View All
+              </Link>
+            </div>
+            <div className="divide-y divide-outline-variant">
+              {recentSubmissions.length === 0 ? (
+                <div className="p-lg text-center text-on-surface-variant text-body-sm italic">
+                  You haven't submitted any solutions yet.{' '}
+                  <Link to="/problems" className="text-primary hover:underline">
+                    Start solving now!
+                  </Link>
+                </div>
+              ) : (
+                recentSubmissions.slice(0, 5).map((sub) => (
+                  <div
+                    key={sub.id}
+                    className="p-lg flex items-center justify-between hover:bg-surface-variant/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-md">
+                      <div
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${getVerdictColor(sub.verdict)}`}
+                      >
+                        <span className="material-symbols-outlined">
+                          {getVerdictIcon(sub.verdict)}
+                        </span>
+                      </div>
+                      <div>
+                        <h4 className="font-body-md text-on-surface font-semibold">
+                          <Link
+                            to={`/problems/${sub.problem.slug}`}
+                            className="hover:text-primary transition-colors"
+                          >
+                            {sub.problem.title}
+                          </Link>
+                        </h4>
+                        <p className="text-on-surface-variant text-body-sm">
+                          {sub.language}
+                          {sub.executionTime !== null && ` • ${sub.executionTime} ms`}
+                          {sub.memoryUsed !== null &&
+                            ` • ${(sub.memoryUsed / 1024).toFixed(1)} MB`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-code-md ${getVerdictTextClass(sub.verdict)}`}>
+                        {getVerdictLabel(sub.verdict)}
+                      </p>
+                      <p className="text-on-surface-variant text-[12px]">
+                        {new Date(sub.createdAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar Content */}
+        <aside className="space-y-gutter">
+          {/* Topic / Language Proficiency Card */}
+          <div className="bg-surface-container rounded-xl p-lg border border-outline-variant">
+            <h3 className="font-headline-md text-headline-md text-on-surface mb-lg">
+              Top Topics
+            </h3>
+            <div className="space-y-md">
+              {topLanguages.length === 0 ? (
+                <p className="text-on-surface-variant text-body-sm italic text-center py-4">
+                  No topic data yet. Solve problems to track progress.
+                </p>
+              ) : (
+                topLanguages.map(([topic, count], index) => {
+                  const colorClass =
+                    index === 0
+                      ? 'bg-primary'
+                      : index === 1
+                        ? 'bg-secondary'
+                        : 'bg-tertiary';
+                  return (
+                    <div key={topic} className="space-y-xs">
+                      <div className="flex justify-between font-label-md text-label-md">
+                        <span>{topic}</span>
+                        <span className="text-on-surface">{count} solved</span>
+                      </div>
+                      <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${colorClass} transition-all duration-500`}
+                          style={{
+                            width: `${Math.min((count / maxTopicCount) * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Daily Challenge Card */}
+          <div className="bg-primary-container/10 border border-primary/20 rounded-xl p-lg relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-lg opacity-10">
+              <span className="material-symbols-outlined text-6xl">lightbulb</span>
+            </div>
+            <h3 className="font-headline-md text-headline-md text-primary mb-md">
+              Daily Challenge
+            </h3>
+            <div className="space-y-md relative z-10">
+              <div className="bg-surface-container p-md rounded-lg border border-outline-variant">
+                <h4 className="font-body-md text-on-surface font-bold mb-xs">
+                  Reverse Nodes in k-Group
+                </h4>
+                <div className="flex gap-sm mb-md">
+                  <span className="font-code-sm text-error bg-error-container/20 px-xs rounded">
+                    Hard
+                  </span>
+                  <span className="font-code-sm text-on-surface-variant">Linked List</span>
+                </div>
+                <Link
+                  to="/problems"
+                  className="block w-full py-sm bg-primary text-center text-on-primary rounded-lg font-bold hover:brightness-110 active:scale-95 transition-all"
+                >
+                  Solve Now
+                </Link>
+              </div>
+              <p className="text-body-sm text-on-surface-variant italic">
+                Solving this challenge grants +50 XP and 2 Streak Protectors.
+              </p>
+            </div>
+          </div>
+
+          {/* Community Contest Card */}
+          <div className="bg-surface-container rounded-xl p-lg border border-outline-variant text-center">
+            <div className="w-16 h-16 mx-auto mb-md flex items-center justify-center rounded-full bg-tertiary-container/20 text-tertiary">
+              <span className="material-symbols-outlined text-4xl">diversity_3</span>
+            </div>
+            <h4 className="font-headline-md text-headline-md text-on-surface mb-sm">
+              <span className="logo-font text-primary">CodeArena</span> Weekly Contest
+            </h4>
+            <p className="text-on-surface-variant text-body-sm mb-md">
+              Compete with 4,000+ developers for global rankings and prizes.
+            </p>
+            <button className="font-label-md text-label-md text-tertiary border border-tertiary/50 px-lg py-sm rounded-lg hover:bg-tertiary/10 transition-all">
+              Register for free
             </button>
+          </div>
+        </aside>
+      </div>
+
+      {/* Daily Goal Config Modal */}
+      {showGoalModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm transition-opacity duration-300 animate-fadeIn">
+          <div className="bg-[#121216]/95 border border-[#1f1f2e] p-lg rounded-2xl max-w-lg w-full mx-4 shadow-2xl space-y-lg flex flex-col h-[550px] transform transition-all duration-300">
+            <div className="flex justify-between items-center pb-md border-b border-[#1f1f2e]">
+              <div>
+                <h3 className="text-lg font-bold text-white">Configure Daily Goal</h3>
+                <p className="text-[11px] text-slate-400">Select the problems you want to commit to solving today.</p>
+              </div>
+              <button
+                onClick={() => setShowGoalModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Search problems */}
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
+                <span className="material-symbols-outlined scale-75">search</span>
+              </span>
+              <input
+                type="text"
+                value={problemSearch}
+                onChange={(e) => setProblemSearch(e.target.value)}
+                placeholder="Search coding problems..."
+                className="block w-full rounded-xl border border-[#1f1f2e] bg-[#0c0c0f] py-2.5 pl-10 pr-4 text-white placeholder-slate-500 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs transition-all"
+              />
+            </div>
+
+            {/* Scrollable list */}
+            <div className="flex-1 overflow-y-auto border border-[#1f1f2e] bg-[#0c0c0f]/60 rounded-xl p-md custom-scrollbar">
+              {isFetchingProblems ? (
+                <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400">
+                  <div className="w-5 h-5 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                  <span className="text-[11px] italic">Fetching platform problems...</span>
+                </div>
+              ) : (
+                <div className="divide-y divide-[#1f1f2e]">
+                  {availableProblems
+                    .filter((p) => p.title.toLowerCase().includes(problemSearch.toLowerCase()))
+                    .map((problem) => {
+                      const isSelected = !!selectedProblems[problem.id];
+                      return (
+                        <div
+                          key={problem.id}
+                          onClick={() => {
+                            const newSelected = { ...selectedProblems };
+                            if (isSelected) {
+                              delete newSelected[problem.id];
+                            } else {
+                              newSelected[problem.id] = {
+                                title: problem.title,
+                                slug: problem.slug,
+                                completed: false,
+                              };
+                            }
+                            setSelectedProblems(newSelected);
+                          }}
+                          className={`flex items-center justify-between p-sm cursor-pointer hover:bg-[#121216]/50 transition-colors ${
+                            isSelected ? 'bg-indigo-500/5' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-md min-w-0">
+                            <span className="material-symbols-outlined text-slate-400 select-none font-bold">
+                              {isSelected ? 'check_box' : 'check_box_outline_blank'}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-white truncate">{problem.title}</p>
+                              <p className="text-[10px] text-slate-500 capitalize">{problem.difficulty.toLowerCase()}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex gap-3 pt-md border-t border-[#1f1f2e]">
+              <button
+                onClick={() => setShowGoalModal(false)}
+                className="flex-1 py-2 px-4 rounded-xl bg-[#121216] border border-[#1f1f2e] hover:bg-[#181824] text-slate-300 text-xs font-semibold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const goalList = Object.entries(selectedProblems).map(([id, item]) => ({
+                    id,
+                    title: item.title,
+                    slug: item.slug,
+                    completed: item.completed,
+                  }));
+                  saveDailyGoal(goalList);
+                  setShowGoalModal(false);
+                }}
+                className="flex-1 py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all shadow-lg shadow-indigo-950/20"
+              >
+                Commit Goal ({Object.keys(selectedProblems).length})
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -246,6 +246,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         username: user.username,
         email: user.email,
         role: user.role,
+        avatarUrl: user.avatarUrl,
       },
       accessToken,
     });
@@ -402,6 +403,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
         username: true,
         email: true,
         role: true,
+        avatarUrl: true,
         createdAt: true,
       },
     });
@@ -418,6 +420,7 @@ export const getProfile = async (req: AuthRequest, res: Response, next: NextFunc
 
 const updateProfileSchema = z.object({
   username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores').optional(),
+  avatarUrl: z.string().url('Invalid profile picture URL').or(z.literal('')).optional().nullable(),
   newPassword: z.string().min(6, 'New password must be at least 6 characters long').optional().or(z.literal('')),
   oldPassword: z.string().min(1, 'Previous password is required to save changes'),
 });
@@ -462,6 +465,10 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
       updateData.passwordHash = await bcrypt.hash(data.newPassword, 10);
     }
 
+    if (data.avatarUrl !== undefined) {
+      updateData.avatarUrl = data.avatarUrl === '' ? null : data.avatarUrl;
+    }
+
     if (Object.keys(updateData).length === 0) {
       return res.json({
         message: 'No changes requested.',
@@ -470,6 +477,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
           username: user.username,
           email: user.email,
           role: user.role,
+          avatarUrl: user.avatarUrl,
         },
       });
     }
@@ -482,6 +490,7 @@ export const updateProfile = async (req: AuthRequest, res: Response, next: NextF
         username: true,
         email: true,
         role: true,
+        avatarUrl: true,
       },
     });
 

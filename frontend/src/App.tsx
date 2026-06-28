@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
+import { Agentation } from 'agentation';
 import { useAuthStore } from './store/authStore';
 import api from './services/api';
 import Home from './pages/Home';
-import { SpotlightNavbar } from './components/ui/spotlight-navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ProblemList from './pages/ProblemList';
@@ -13,7 +13,8 @@ import Dashboard from './pages/Dashboard';
 import Leaderboard from './pages/Leaderboard';
 import VerifyEmail from './pages/VerifyEmail';
 import ForgotPassword from './pages/ForgotPassword';
-import { Terminal, LogOut, User as UserIcon, Lock, User, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { LogOut, Lock, User, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { FlipText } from './components/ui/flip-text';
 
 // Route guards
 function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) {
@@ -56,7 +57,26 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('codearena_theme');
+    if (saved) {
+      return saved === 'dark';
+    }
+    return document.documentElement.classList.contains('dark');
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('codearena_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('codearena_theme', 'light');
+    }
+  }, [isDarkMode]);
 
   const handleLogout = async () => {
     setShowLogoutConfirm(false);
@@ -70,47 +90,139 @@ function Layout({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const navItems = [
-    { label: 'Home', href: '/dashboard' },
-    { label: 'Problems', href: '/problems' },
-    { label: 'Leaderboard', href: '/leaderboard' },
-    { label: 'Account', href: '/profile' },
-    ...(user?.role === 'ADMIN' ? [{ label: 'Admin', href: '/admin' }] : []),
-    { label: 'Logout', href: '#', onClick: () => setShowLogoutConfirm(true) }
-  ];
+  const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-slate-100 flex flex-col font-sans relative">
-      <header className="border-b border-[#1f1f2e]/60 bg-[#121216]/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <Link to={user ? "/dashboard" : "/"} className="flex items-center gap-2.5 font-bold text-xl hover:opacity-90 transition-opacity shrink-0">
-            <span className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <Terminal className="h-5 w-5" />
-            </span>
-            <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent font-extrabold tracking-tight">
-              CodeArena
-            </span>
+    <div className="font-body-md text-body-md overflow-x-hidden min-h-screen bg-background text-on-background relative">
+      {/* SideNavBar Shell */}
+      <nav className="h-screen w-64 fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant flex flex-col py-lg z-50 animate-fadeIn">
+        <div className="px-md mb-xl flex items-center gap-sm">
+          <Link to="/dashboard" className="logo-font text-[28px] text-primary select-none pointer-events-none">
+            <FlipText separator="">{"<0de4rena"}</FlipText>
           </Link>
+        </div>
+        <div className="flex-1 space-y-1 px-sm">
+          {/* Dashboard */}
+          <Link
+            className={`flex items-center gap-md px-md py-sm rounded-lg cursor-pointer active:scale-95 transition-transform ${isActive('/dashboard') ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-200'}`}
+            to="/dashboard"
+          >
+            <span className="material-symbols-outlined">dashboard</span>
+            <span className="font-body-md text-body-md">Dashboard</span>
+          </Link>
+          {/* Problems */}
+          <Link
+            className={`flex items-center gap-md px-md py-sm rounded-lg cursor-pointer active:scale-95 transition-transform ${isActive('/problems') || location.pathname.startsWith('/problems/') ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-200'}`}
+            to="/problems"
+          >
+            <span className="material-symbols-outlined">code</span>
+            <span className="font-body-md text-body-md">Problems</span>
+          </Link>
+          {/* Leaderboard */}
+          <Link
+            className={`flex items-center gap-md px-md py-sm rounded-lg cursor-pointer active:scale-95 transition-transform ${isActive('/leaderboard') ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-200'}`}
+            to="/leaderboard"
+          >
+            <span className="material-symbols-outlined">leaderboard</span>
+            <span className="font-body-md text-body-md">Leaderboard</span>
+          </Link>
+          {/* Profile */}
+          <Link
+            className={`flex items-center gap-md px-md py-sm rounded-lg cursor-pointer active:scale-95 transition-transform ${isActive('/profile') ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-200'}`}
+            to="/profile"
+          >
+            <span className="material-symbols-outlined">person</span>
+            <span className="font-body-md text-body-md">Profile</span>
+          </Link>
+        </div>
+        <div className="space-y-1 px-sm">
+          <Link
+            className={`flex items-center gap-md px-md py-sm rounded-lg cursor-pointer active:scale-95 transition-transform ${isActive('/profile') ? 'bg-surface-variant text-on-surface' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors duration-200'}`}
+            to="/profile"
+          >
+            <span className="material-symbols-outlined">settings</span>
+            <span className="font-body-md text-body-md">Settings</span>
+          </Link>
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            className="w-full flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface rounded-lg cursor-pointer active:scale-95 transition-transform transition-colors duration-200"
+          >
+            <span className="material-symbols-outlined">logout</span>
+            <span className="font-body-md text-body-md text-left">Logout</span>
+          </button>
+        </div>
+      </nav>
 
-          {user ? (
-            <SpotlightNavbar items={navItems} className="pt-0 flex-1 justify-end max-w-xl" />
-          ) : (
-            <nav className="flex items-center gap-4">
-              <Link to="/login" className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">
-                Sign In
-              </Link>
-              <Link
-                to="/register"
-                className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-600/25 transition-all duration-200"
-              >
-                Sign Up
-              </Link>
-            </nav>
-          )}
+      {/* TopNavBar Shell */}
+      <header className="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-surface border-b border-outline-variant flex justify-between items-center px-gutter h-16 ml-64">
+        <div className="flex-1" />
+        <div className="flex items-center gap-lg ml-gutter">
+          <div className="flex items-center gap-md">
+            <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">notifications</button>
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkMode ? 'light_mode' : 'dark_mode'}
+            </button>
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+              className="flex items-center gap-sm pl-md border-l border-outline-variant cursor-pointer group hover:opacity-80 transition-opacity"
+            >
+              <div className="text-right">
+                <p className="font-label-md text-label-md text-on-surface">{user?.username}</p>
+                <p className="text-[10px] text-primary uppercase tracking-wider font-bold">
+                  {user?.role === 'ADMIN' ? 'Admin' : 'Developer'}
+                </p>
+              </div>
+              {user?.avatarUrl ? (
+                <img
+                  alt="User avatar"
+                  className="w-10 h-10 rounded-full border-2 border-primary/30 object-cover"
+                  src={user.avatarUrl}
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full border border-outline-variant/30 bg-transparent" />
+              )}
+            </button>
+
+            {showProfileDropdown && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowProfileDropdown(false)} />
+                <div className="absolute right-0 top-12 w-48 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl py-xs z-50 animate-fadeIn">
+                  <Link
+                    to="/profile"
+                    onClick={() => setShowProfileDropdown(false)}
+                    className="flex items-center gap-sm px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors text-xs font-semibold w-full text-left"
+                  >
+                    <span className="material-symbols-outlined scale-75">settings</span>
+                    Settings
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setShowProfileDropdown(false);
+                      handleLogout();
+                    }}
+                    className="flex items-center gap-sm px-md py-sm text-error hover:bg-error-container/10 transition-colors text-xs font-semibold w-full text-left"
+                  >
+                    <span className="material-symbols-outlined scale-75 text-error">logout</span>
+                    Logout
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
+
+      {/* Main Content Canvas */}
+      <main className="ml-64 pt-16 min-h-screen flex flex-col">
+        <div className="flex-1">
+          {children}
+        </div>
       </main>
 
       {/* Confirmation Modal */}
@@ -154,6 +266,7 @@ import { useNavigate } from 'react-router-dom';
 function UserProfile() {
   const { user, accessToken, setAuth } = useAuthStore();
   const [username, setUsername] = useState(user?.username || '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
   const [newPassword, setNewPassword] = useState('');
   const [oldPassword, setOldPassword] = useState('');
 
@@ -175,7 +288,7 @@ function UserProfile() {
     try {
       const response = await api.put(
         '/auth/profile',
-        { username, newPassword, oldPassword },
+        { username, avatarUrl: avatarUrl || null, newPassword, oldPassword },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -200,9 +313,13 @@ function UserProfile() {
       {/* Left side: Account Info Summary */}
       <div className="md:col-span-5 p-8 rounded-2xl bg-[#121216]/80 border border-[#1f1f2e] space-y-6 self-start">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20 text-2xl font-bold">
-            {user?.username.slice(0, 2).toUpperCase()}
-          </div>
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt="Avatar" className="h-16 w-16 rounded-2xl object-cover" />
+          ) : (
+            <div className="h-16 w-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20 text-2xl font-bold">
+              {user?.username.slice(0, 2).toUpperCase()}
+            </div>
+          )}
           <div>
             <h2 className="text-xl font-bold text-white">{user?.username}</h2>
             <p className="text-sm text-slate-400">{user?.email}</p>
@@ -240,6 +357,25 @@ function UserProfile() {
         )}
 
         <form onSubmit={handleUpdateProfile} className="space-y-4">
+          <div>
+            <label htmlFor="update-avatar" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Profile Picture URL (Optional)
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                <span className="material-symbols-outlined text-[20px]">image</span>
+              </div>
+              <input
+                id="update-avatar"
+                type="url"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                className="block w-full rounded-xl border border-[#1f1f2e] bg-[#0c0c0f] py-3 pl-10 pr-4 text-white placeholder-slate-500 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-sm transition-all"
+                placeholder="https://example.com/photo.jpg"
+              />
+            </div>
+          </div>
+
           <div>
             <label htmlFor="update-username" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
               Username
@@ -434,6 +570,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {import.meta.env.DEV && <Agentation />}
     </Router>
   );
 }

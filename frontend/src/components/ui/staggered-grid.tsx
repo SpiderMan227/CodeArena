@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { cn } from '../../lib/utils'
-import { Github, Code2, Cpu, Database, Shield, Sparkles, Terminal, FileCode, Layers, Globe } from 'lucide-react'
+import { Code2, Cpu, Database, Shield, Sparkles, Terminal, FileCode, Layers, Globe } from 'lucide-react'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -33,9 +33,9 @@ export interface StaggeredGridProps {
 export function StaggeredGrid({
     images,
     bentoItems,
-    centerText = "CodeArena",
+    centerText = "CodeFlow",
     credits = {
-        madeBy: { text: "CodeArena", href: "#" },
+        madeBy: { text: "CodeFlow", href: "#" },
         moreDemos: { text: "Built with GSAP", href: "https://greensock.com/" }
     },
     className,
