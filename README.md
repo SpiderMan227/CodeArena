@@ -43,7 +43,7 @@ DATABASE_URL="postgresql://postgres:123456@127.0.0.1:5432/codearena?schema=publi
 JWT_ACCESS_SECRET="your-super-secret-access-key"
 JWT_REFRESH_SECRET="your-super-secret-refresh-key"
 REDIS_URL="redis://localhost:6379"
-GEMINI_API_KEY="your-gemini-api-key"
+GLM_API_KEY="your-glm-api-key"
 RESEND_API_KEY="your-resend-api-key"
 ```
 
